@@ -220,6 +220,10 @@ public class ProcessClient {
 					}
 					
 					break;
+				case 4545:
+					gateway.putToSleep();
+					
+					break;
 				default:
 					System.out.println("Opção inválida.");
 				

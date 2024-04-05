@@ -22,5 +22,6 @@ public interface GatewayInterface extends Remote {
 	public List<Car> searchCars(String category) throws RemoteException;
 	public Car buyCar(String renavam) throws RemoteException;
 	public int getAmount(int category) throws RemoteException;
+	public void putToSleep() throws RemoteException;
 	
 }

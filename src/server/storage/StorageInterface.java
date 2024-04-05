@@ -18,5 +18,11 @@ public interface StorageInterface extends Remote {
 	public List<Car> searchCars(String category) throws RemoteException;
 	public Car buyCar(String renavam) throws RemoteException;
 	public int getAmount(int category) throws RemoteException;
+	public ServerRole getRole() throws RemoteException;
+	public void setRole(ServerRole ro) throws RemoteException;
+	public int getId() throws RemoteException;
+	public void setId(int id) throws RemoteException;
+	public StorageInterface startElections() throws RemoteException;
+	public void setFollowers() throws RemoteException;
 	
 }

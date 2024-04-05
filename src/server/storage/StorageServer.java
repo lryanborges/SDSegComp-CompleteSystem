@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.rmi.AlreadyBoundException;
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -16,6 +17,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Random;
+import java.util.Scanner;
 import java.util.Map.Entry;
 
 import model.Car;
@@ -30,9 +33,14 @@ public class StorageServer implements StorageInterface {
 	private static ObjectOutputStream fileOutput;
 	private static ObjectInputStream fileInput;
 	private static int currentDatabase = 0;
-	private static int economicAmount = 0, intermediaryAmount = 0, executiveAmount = 0; 
+	private static int economicAmount = 0, intermediaryAmount = 0, executiveAmount = 0;
+	private static ServerRole role;
+	private static StorageInterface followerServer1;
+	private static StorageInterface followerServer2;
+	private static int id;
+	private static Scanner scanner; 
 	
-	public StorageServer() {
+	public StorageServer(ServerRole r) {
 		
 		for(int i = 0; i < 3; i++) {
 			try { // tenta abrir
@@ -52,22 +60,34 @@ public class StorageServer implements StorageInterface {
 		}	
 
 		cars = getFileCars();
+		role = r;
 	}
 	
 	public static void main(String[] args) {
 		
-		StorageServer storServer = new StorageServer();
+		StorageServer storServer = new StorageServer(ServerRole.LEADER);
+		scanner = new Scanner(System.in);
 
 		try {
 			StorageInterface server = (StorageInterface) UnicastRemoteObject.exportObject(storServer, 0);
 
 			LocateRegistry.createRegistry(5002);
 			Registry register = LocateRegistry.getRegistry("127.0.0.2", 5002);
-			register.bind("Storage", server);
+			register.bind("Storage1", server);
 
-			System.out.println("Servidor de Armazenamento ligado.");
+			scanner.nextLine();
+
+			Registry follower = LocateRegistry.getRegistry(5003);
+			followerServer1 = (StorageInterface) follower.lookup("Storage2");
+
+			follower = LocateRegistry.getRegistry(5004);
+			followerServer2 = (StorageInterface) follower.lookup("Storage3");
+
+			System.out.println("Servidor de Armazenamento-1 ligado.");
 
 		} catch (RemoteException | AlreadyBoundException e) {
+			e.printStackTrace();
+		} catch (NotBoundException e) {
 			e.printStackTrace();
 		}
 		
@@ -76,10 +96,12 @@ public class StorageServer implements StorageInterface {
 	@Override
 	public void addCar(Car newCar) {
 		cars = getFileCars(); // pega do arquivo e bota no mapa
-		cars.put(newCar.getRenavam(), newCar); // add no mapa
-		attServer(); // salva o mapa num arquivo
-		
-		System.out.println("Carro adicionado com sucesso.");
+
+		if(role == ServerRole.LEADER) {
+			cars.put(newCar.getRenavam(), newCar); // add no mapa
+			attServer(); // salva o mapa num arquivo
+			System.out.println("Carro adicionado com sucesso.");
+		}
 	}
 
 	@Override
@@ -87,44 +109,47 @@ public class StorageServer implements StorageInterface {
 		cars = getFileCars(); // att o mapa pra versao mais recente
 		Car editCar = searchCar(renavam);
 		
-		if(editedCar.getName() != null) {
-			editCar.setName(editedCar.getName());
-		}
-		if(editedCar.getCategory() != 0) {
-			switch(editCar.getCategory()) {
-			case 1:
-				economicAmount--;
-				break;
-			case 2:
-				intermediaryAmount--;
-				break;
-			case 3:
-				executiveAmount--;
-				break;
+		if(role == ServerRole.LEADER) {
+			if(editedCar.getName() != null) {
+				editCar.setName(editedCar.getName());
 			}
-			switch(editedCar.getCategory()) {
-			case 1:
-				economicAmount++;
-				break;
-			case 2:
-				intermediaryAmount++;
-				break;
-			case 3:
-				executiveAmount++;
-				break;
+			if(editedCar.getCategory() != 0) {
+				switch(editCar.getCategory()) {
+				case 1:
+					economicAmount--;
+					break;
+				case 2:
+					intermediaryAmount--;
+					break;
+				case 3:
+					executiveAmount--;
+					break;
+				}
+				switch(editedCar.getCategory()) {
+				case 1:
+					economicAmount++;
+					break;
+				case 2:
+					intermediaryAmount++;
+					break;
+				case 3:
+					executiveAmount++;
+					break;
+				}
+				editCar.setCategory(editedCar.getCategory());
 			}
-			editCar.setCategory(editedCar.getCategory());
-		}
-		if(editedCar.getManufactureYear() != null) {
-			editCar.setManufactureYear(editedCar.getManufactureYear());
-		}
-		if(editedCar.getPrice() != 0.0) {
-			editCar.setPrice(editedCar.getPrice());
+			if(editedCar.getManufactureYear() != null) {
+				editCar.setManufactureYear(editedCar.getManufactureYear());
+			}
+			if(editedCar.getPrice() != 0.0) {
+				editCar.setPrice(editedCar.getPrice());
+			}
+			
+			System.out.println("Carro de renavam " + renavam + " editado com sucesso.");
+			
+			attServer(); // salva o mapa num arquivo
 		}
 		
-		System.out.println("Carro de renavam " + renavam + " editado com sucesso.");
-		
-		attServer(); // salva o mapa num arquivo
 	}
 
 	@Override
@@ -132,12 +157,14 @@ public class StorageServer implements StorageInterface {
 		cars = getFileCars(); // att o mapa pra versao mais recente
 		Car deleteCar = searchCar(renavam);
 		
-		if(deleteCar != null) {
-			cars.remove(renavam, deleteCar);
-			System.out.println("Carro de renavam " + renavam + " deletado com sucesso.");
+		if(role == ServerRole.LEADER) {
+			if(deleteCar != null) {
+				cars.remove(renavam, deleteCar);
+				System.out.println("Carro de renavam " + renavam + " deletado com sucesso.");
+			}
+			
+			attServer(); // salva o mapa num arquivo
 		}
-		
-		attServer(); // salva o mapa num arquivo
 	}
 	
 	@Override
@@ -145,14 +172,16 @@ public class StorageServer implements StorageInterface {
 		cars = getFileCars(); // att o mapa pra versao mais recente
 		List<Car> deleteCars = searchCars(name);
 		
-		if(deleteCars != null) {
-			for(Car toDeleteCar : deleteCars) {
-				cars.remove(toDeleteCar.getRenavam(), toDeleteCar);
+		if(role == ServerRole.LEADER) {
+			if(deleteCars != null) {
+				for(Car toDeleteCar : deleteCars) {
+					cars.remove(toDeleteCar.getRenavam(), toDeleteCar);
+				}
+				System.out.println("Todos os carros " + name + " deletados com sucesso.");
 			}
-			System.out.println("Todos os carros " + name + " deletados com sucesso.");
+			
+			attServer(); // salva o mapa num arquivo
 		}
-		
-		attServer(); // salva o mapa num arquivo
 	}
 
 	@Override
@@ -228,11 +257,15 @@ public class StorageServer implements StorageInterface {
 	@Override
 	public Car buyCar(String renavam) {
 		
-		Car purchased = searchCar(renavam);
-		System.out.println("Carro de renavam " + renavam + " foi comprado.");
-		deleteCar(renavam);
+		if(role == ServerRole.LEADER) {
+			Car purchased = searchCar(renavam);
+			System.out.println("Carro de renavam " + renavam + " foi comprado.");
+			deleteCar(renavam);
+			
+			return purchased;
+		}
 		
-		return purchased;
+		return null;
 	}
 	
 	private static HashMap<String, Car> getFileCars() {
@@ -322,6 +355,51 @@ public class StorageServer implements StorageInterface {
 			ExecutiveCar.setAmount(executiveAmount);
 			return economicAmount + intermediaryAmount + executiveAmount;	
 		}
+	}
+
+	@Override
+	public ServerRole getRole() throws RemoteException {
+		return role;
+	}
+
+	@Override
+	public void setRole(ServerRole ro) throws RemoteException {
+		role = ro;
+	}
+
+	@Override
+	public int getId() throws RemoteException {
+		return id;
+	}
+
+	@Override
+	public void setId(int ID) throws RemoteException {
+		id = ID;
+	}
+
+	@Override
+	public void setFollowers() throws RemoteException {
+		followerServer1.setRole(ServerRole.FOLLOWER);
+		followerServer2.setRole(ServerRole.FOLLOWER);
+	}
+
+	@Override
+	public StorageInterface startElections() throws RemoteException {
+		followerServer1.setRole(ServerRole.CANDIDATE);
+		followerServer2.setRole(ServerRole.CANDIDATE);
+
+		Random rand = new Random();
+		followerServer1.setId(rand.nextInt());
+		followerServer2.setId(rand.nextInt());
+
+		if(followerServer1.getId() > followerServer2.getId()) {
+			followerServer1.setRole(ServerRole.LEADER);
+			followerServer1.setFollowers();
+			return followerServer1;
+		}
+		followerServer2.setRole(ServerRole.LEADER);
+		followerServer2.setFollowers();
+		return followerServer2;
 	}
 	
 }
