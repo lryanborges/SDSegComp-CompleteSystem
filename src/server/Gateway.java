@@ -91,6 +91,8 @@ public class Gateway implements GatewayInterface {
 			}
 			else if(store.getRole() == ServerRole.OUTOFORDER) {
 				storServer = store.startElections();
+				storServer.addCar(newCar);
+				System.out.println("Carro adicionado com sucesso.");
 			}
 		}
 	}
@@ -104,6 +106,8 @@ public class Gateway implements GatewayInterface {
 			}
 			else if(store.getRole() == ServerRole.OUTOFORDER) {
 				storServer = store.startElections();
+				storServer.editCar(renavam, editedCar);
+				System.out.println("Carro de renavam " + renavam + " editado com sucesso.");
 			}
 		}
 	}
@@ -117,6 +121,8 @@ public class Gateway implements GatewayInterface {
 			}
 			else if(store.getRole() == ServerRole.OUTOFORDER) {
 				storServer = store.startElections();
+				storServer.deleteCar(renavam);
+				System.out.println("Carro de renavam " + renavam + " deletado com sucesso.");
 			}
 		}
 	}
@@ -130,6 +136,8 @@ public class Gateway implements GatewayInterface {
 			}
 			else if(store.getRole() == ServerRole.OUTOFORDER) {
 				storServer = store.startElections();
+				storServer.deleteCars(name);
+				System.out.println("Todos os carros " + name + " deletados com sucesso.");
 			}
 		}
 	}
