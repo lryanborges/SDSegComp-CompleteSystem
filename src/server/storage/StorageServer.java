@@ -6,12 +6,17 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.UnsupportedEncodingException;
 import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.RemoteServer;
+import java.rmi.server.ServerNotActiveException;
 import java.rmi.server.UnicastRemoteObject;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -21,13 +26,21 @@ import java.util.Random;
 import java.util.Scanner;
 import java.util.Map.Entry;
 
+import crypto.Encrypter;
+import crypto.Hasher;
+import datagrams.Message;
+import datagrams.Permission;
 import model.Car;
 import model.EconomicCar;
 import model.ExecutiveCar;
 import model.IntermediaryCar;
+import model.Keys;
+import server.Gateway;
 
 public class StorageServer implements StorageInterface {
 
+	private static Keys gatewayKeys;
+	
 	private static String path[] = {"src/server/storage/cars.txt", "src/server/storage/cars2.txt", "src/server/storage/cars3.txt"};
 	private static HashMap<String, Car> cars;
 	private static ObjectOutputStream fileOutput;
@@ -40,8 +53,9 @@ public class StorageServer implements StorageInterface {
 	private static int id;
 	private static Scanner scanner; 
 	
+	private static Permission gatewayPermission;
+	
 	public StorageServer(ServerRole r) {
-		
 		for(int i = 0; i < 3; i++) {
 			try { // tenta abrir
 				//fileOutput = new ObjectOutputStream(new FileOutputStream(path[i]));
@@ -75,6 +89,8 @@ public class StorageServer implements StorageInterface {
 			Registry register = LocateRegistry.getRegistry("127.0.0.2", 5002);
 			register.bind("Storage1", server);
 
+			gatewayPermission = new Permission("192.168.1.105", "192.168.1.105", 5002, "Loja1", true);
+
 			scanner.nextLine();
 
 			Registry follower = LocateRegistry.getRegistry(5003);
@@ -84,6 +100,7 @@ public class StorageServer implements StorageInterface {
 			followerServer2 = (StorageInterface) follower.lookup("Storage3");
 
 			System.out.println("Servidor de Armazenamento-1 ligado.");
+
 
 		} catch (RemoteException | AlreadyBoundException e) {
 			e.printStackTrace();
@@ -110,7 +127,7 @@ public class StorageServer implements StorageInterface {
 		Car editCar = searchCar(renavam);
 		
 		if(role == ServerRole.LEADER) {
-			if(editedCar.getName() != null) {
+			if(!editedCar.getName().equals(null) && !editedCar.getName().equals("null")) {
 				editCar.setName(editedCar.getName());
 			}
 			if(editedCar.getCategory() != 0) {
@@ -138,7 +155,7 @@ public class StorageServer implements StorageInterface {
 				}
 				editCar.setCategory(editedCar.getCategory());
 			}
-			if(editedCar.getManufactureYear() != null) {
+			if(!editedCar.getManufactureYear().equals(null) && !editedCar.getManufactureYear().equals("null")) {
 				editCar.setManufactureYear(editedCar.getManufactureYear());
 			}
 			if(editedCar.getPrice() != 0.0) {
@@ -400,6 +417,113 @@ public class StorageServer implements StorageInterface {
 		followerServer2.setRole(ServerRole.LEADER);
 		followerServer2.setFollowers();
 		return followerServer2;
+	}
+	
+	@Override
+	public void addNewClientKeys(Keys newClientKeys) throws RemoteException {
+		gatewayKeys = newClientKeys;
+	}
+	
+	@Override
+	public Message receiveMessage(Message<String> msg) throws RemoteException {
+		// permissões p serviço da loja
+		if(StorageServer.getPermission()) {
+			Keys currentClient = gatewayKeys;
+			
+			if(currentClient != null) {
+				String decryptedMsg = Encrypter.fullDecrypt(currentClient, msg.getContent());
+				String realHMAC;
+				try {
+					realHMAC = Hasher.hMac(currentClient.getHMACKey(), decryptedMsg);
+					
+					boolean validSignature = Encrypter.verifySignature(currentClient.getRsaKeys(), realHMAC, msg.getMessageSignature());
+					
+					if(validSignature) {
+						switch(msg.getOperation()) {
+						case 1:
+							List<Car> response = this.listCars(Integer.parseInt(decryptedMsg)); // MUDARR O NUMERO PRO NUMERO DA MSG
+							return new Message<Car>(1, response, "aqui fica a assinatura do server dps");
+						case 111: 
+							List<Car> response2 = this.listCars();
+							return new Message<Car>(111, response2, "aqui fica assinatura dps");
+						case 2:
+							Car response3 = this.searchCar(decryptedMsg);
+							return new Message<Car>(2, response3, "aqui fica assinatura");
+						case 222:
+							List<Car> response4 = this.searchCars(decryptedMsg);
+							return new Message<Car>(222, response4, "assinatura");
+						case 3:
+							Car response5 = this.buyCar(decryptedMsg);
+							return new Message<Car>(3, response5, "assinatura");
+						case 4:
+							Integer response6 = this.getAmount(Integer.parseInt(decryptedMsg));
+							return new Message<Integer>(4, response6, "assinatura");
+						case 5:
+							String[] carPart = decryptedMsg.split("°");
+							int typeOfCar = Integer.parseInt(carPart[2]);
+							switch(typeOfCar) {
+							case 1:
+								this.addCar(new EconomicCar(carPart[0], carPart[1], typeOfCar, carPart[3], Double.parseDouble(carPart[4])));
+								break;
+							case 2:
+								this.addCar(new IntermediaryCar(carPart[0], carPart[1], typeOfCar, carPart[3], Double.parseDouble(carPart[4])));
+								break;
+							case 3:
+								this.addCar(new ExecutiveCar(carPart[0], carPart[1], typeOfCar, carPart[3], Double.parseDouble(carPart[4])));
+								break;
+							default:
+								System.out.println("Tipo inválido.");
+							}
+							return null; // fica tipo o return void
+						case 6:
+							String[] carPart2 = decryptedMsg.split("°");
+							String toEditRenavam = carPart2[0];
+							this.editCar(toEditRenavam, new Car(toEditRenavam, carPart2[1], Integer.parseInt(carPart2[2]), carPart2[3], Double.parseDouble(carPart2[4])));
+							return null; // fica tipo return void
+						case 7:
+							this.deleteCar(decryptedMsg);
+							return null; // return void
+						case 777:
+							this.deleteCars(decryptedMsg);
+							return null; // return void
+						default: 
+							System.out.println("Opção inválida.");
+						}
+					} else {
+						System.out.println("Assinatura inválida. Cliente não autorizado.");
+					}
+					
+				} catch (InvalidKeyException | NoSuchAlgorithmException | UnsupportedEncodingException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			} else {
+				System.out.println("Cliente não existe.");
+			}
+		}
+		
+		return null;
+	}
+	
+	public static boolean getPermission() {
+		
+		String sourceIp = "";
+		
+		try {
+			sourceIp = RemoteServer.getClientHost();
+		} catch (ServerNotActiveException e1) {
+			e1.printStackTrace();
+		}
+		
+		if(gatewayPermission.getSourceIp().equals(sourceIp) && (gatewayPermission.getDestinationPort() >= 5002 && gatewayPermission.getDestinationPort() <= 5004)) {
+			System.out.println("------------------------");
+			System.out.println("Firewall --> Pacote permitido. Acesso: " + gatewayPermission.getName() + ", source: " + gatewayPermission.getSourceIp());
+			return true;
+		} else {
+			System.out.println("------------------------");
+			System.out.println("Firewall --> Pacote negado. Acesso: " + gatewayPermission.getName() + ", source: " + gatewayPermission.getSourceIp());
+			return false;
+		}
 	}
 	
 }

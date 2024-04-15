@@ -1,23 +1,37 @@
 package client;
 
+import java.io.UnsupportedEncodingException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+import crypto.Encrypter;
+import crypto.Hasher;
+import crypto.MyKeyGenerator;
+import datagrams.Message;
 import model.Car;
 import model.Client;
 import model.EconomicCar;
 import model.Employee;
 import model.ExecutiveCar;
 import model.IntermediaryCar;
+import model.Keys;
+import model.RSAKeys;
 import model.User;
 import server.GatewayInterface;
+import server.storage.StorageInterface;
 
 public class ProcessClient {
+	
+	static int clientNumber;
+	static Keys myKeys;
+	static RSAKeys gatewayRSAKeys;
 	
 	private static boolean connected = false;
 	private static Scanner scan;
@@ -25,14 +39,41 @@ public class ProcessClient {
 	private static User connectedUser;
 	private static List<Car> myCars;
 	
+	// pra demonstração do firewall
+	private static StorageInterface storServer;
+	
+	private static int passwordTries = 3;
+	
 	public static void main(String[] args) {
 		
+		clientNumber = 1;
+		myKeys = new Keys();
 		scan = new Scanner(System.in);
 		myCars = new ArrayList<Car>();
 		
+		// cada cliente vai ter suas chaves
+		myKeys.setVernamKey(MyKeyGenerator.generateKeyVernam());
+		myKeys.setAesKey(MyKeyGenerator.generateKeyAes());
+		myKeys.setHMACKey(MyKeyGenerator.generateKeyHMAC());
+		RSAKeys myRsaKeys = MyKeyGenerator.generateKeysRSA();
+		// nao adiciona a chave privada ainda pq ainda vai enviar pro gateway
+		myKeys.setRsaKeys(new RSAKeys(myRsaKeys.getPublicKey(), myRsaKeys.getnMod()));
+		
 		try {
-			Registry authRegister = LocateRegistry.getRegistry(5000);
-			gateway = (GatewayInterface) authRegister.lookup("Gateway");
+			Registry gatRegister = LocateRegistry.getRegistry("127.0.0.10", 5000);
+			gateway = (GatewayInterface) gatRegister.lookup("Gateway");
+			
+			// pra demonstração do firewall
+			Registry storRegister = LocateRegistry.getRegistry("127.0.0.2", 5002);
+			storServer = (StorageInterface) storRegister.lookup("Storage1");
+			
+			gateway.addNewClientKeys(clientNumber, myKeys); // manda suas chaves pro server
+			myKeys.getRsaKeys().setPrivateKey(myRsaKeys.getPrivateKey()); // agora sim add a chave privada dps de enviar pro gateway sem
+			
+			System.out.println("Chave privada: " + myKeys.getRsaKeys().getPrivateKey());
+			System.out.println("Chave pública: " + myKeys.getRsaKeys().getPublicKey());
+			System.out.println("priv: " + myRsaKeys.getPrivateKey());
+			System.out.println("Mod: " + myKeys.getRsaKeys().getnMod());
 			
 			while(!connected) {
 				
@@ -51,6 +92,14 @@ public class ProcessClient {
 					connectedUser = login();
 					if(connectedUser != null) {
 						connected = true;
+					} else {
+						ProcessClient.passwordTries--;
+						if(ProcessClient.passwordTries == 0) {
+							System.out.println("Sistema bloqueado por 10 segundos.");
+							System.out.println("------------------------");
+							Thread.sleep(10000);
+							ProcessClient.passwordTries = 3;
+						}
 					}
 					break;
 				case 2:
@@ -82,6 +131,9 @@ public class ProcessClient {
 				scan.nextLine();
 				System.out.println("------------------");
 				
+				String msgEncrypted;
+				String hmac;
+				String signature;
 				switch(opc) {
 				
 				case 1:
@@ -99,14 +151,27 @@ public class ProcessClient {
 					
 					List<Car> cars = new ArrayList<Car>();
 					
+					Message<Car> response;
 					switch(listOpc) {
 					case 1:
 					case 2:
-					case 3:
-						cars = gateway.listCars(listOpc);
+					case 3:	
+						//cars = gateway.listCars(listOpc);
+						hmac = Hasher.hMac(myKeys.getHMACKey(), String.valueOf(listOpc));
+						msgEncrypted = Encrypter.fullEncrypt(myKeys, String.valueOf(listOpc));
+						signature = Encrypter.signMessage(myKeys, hmac);
+						
+						response = (Message<Car>) gateway.receiveMessage(new Message<String>(1, msgEncrypted, signature, clientNumber));
+						cars = response.getListContent();
 						break;
 					case 4:
-						cars = gateway.listCars();
+						//cars = gateway.listCars();
+						hmac = Hasher.hMac(myKeys.getHMACKey(), "put to pull");
+						msgEncrypted = Encrypter.fullEncrypt(myKeys, "put to pull");
+						signature = Encrypter.signMessage(myKeys, hmac);
+						
+						response = (Message<Car>) gateway.receiveMessage(new Message<String>(111, msgEncrypted, signature, clientNumber));
+						cars = response.getListContent();
 						break;
 					default:
 						System.out.println("Opção inválida.");
@@ -139,7 +204,15 @@ public class ProcessClient {
 						System.out.print("Digite o renavam: ");
 						String renavam = scan.nextLine();
 						
-						Car findedCar = gateway.searchCar(renavam);
+						//Car findedCar = gateway.searchCar(renavam);
+						
+						hmac = Hasher.hMac(myKeys.getHMACKey(), renavam);
+						msgEncrypted = Encrypter.fullEncrypt(myKeys, renavam);
+						signature = Encrypter.signMessage(myKeys, hmac);
+						
+						response = (Message<Car>) gateway.receiveMessage(new Message<String>(2, msgEncrypted, signature, clientNumber));
+						Car findedCar = response.getContent();
+						
 						if(findedCar != null) {
 							System.out.println("------------------");
 							System.out.println("Renavam: " + findedCar.getRenavam());
@@ -156,7 +229,14 @@ public class ProcessClient {
 						System.out.print("Digite o nome: ");
 						String name = scan.nextLine();
 						
-						List<Car> findedsCar = gateway.searchCars(name);
+						//List<Car> findedsCar = gateway.searchCars(name);
+
+						hmac = Hasher.hMac(myKeys.getHMACKey(), name);
+						msgEncrypted = Encrypter.fullEncrypt(myKeys, name);
+						signature = Encrypter.signMessage(myKeys, hmac);
+						
+						response = (Message<Car>) gateway.receiveMessage(new Message<String>(222, msgEncrypted, signature, clientNumber));
+						List<Car> findedsCar = response.getListContent();
 						for(Car car : findedsCar) {
 							System.out.println("------------------");
 							System.out.println("Renavam: " + car.getRenavam());
@@ -184,7 +264,14 @@ public class ProcessClient {
 					System.out.print("Categoria: ");
 					int category = scan.nextInt();
 					
-					int amount = gateway.getAmount(category);
+					//int amount = gateway.getAmount(category);
+					hmac = Hasher.hMac(myKeys.getHMACKey(), String.valueOf(category));
+					msgEncrypted = Encrypter.fullEncrypt(myKeys, String.valueOf(category));
+					signature = Encrypter.signMessage(myKeys, hmac);
+					
+					Message<Integer> responseInt = (Message<Integer>) gateway.receiveMessage(new Message<String>(4, msgEncrypted, signature, clientNumber));
+					int amount = responseInt.getContent();
+					
 					System.out.println("--------------------");
 					System.out.println("Quantidade de carros na loja: " + amount);
 					
@@ -224,6 +311,8 @@ public class ProcessClient {
 					gateway.putToSleep();
 					
 					break;
+				case 5454:
+					tryAcessStorage();
 				default:
 					System.out.println("Opção inválida.");
 				
@@ -231,7 +320,9 @@ public class ProcessClient {
 				
 			}
 			
-		} catch (RemoteException | NotBoundException e) {
+		} catch (RemoteException | NotBoundException | InvalidKeyException | NoSuchAlgorithmException | UnsupportedEncodingException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 	}
@@ -283,7 +374,7 @@ public class ProcessClient {
 		
 	}
 	
-	private static void addCar() throws RemoteException {
+	private static void addCar() throws RemoteException, InvalidKeyException, NoSuchAlgorithmException, UnsupportedEncodingException {
 		System.out.print("Renavam: ");
 		String newRenavam = scan.nextLine();
 		System.out.print("Nome: ");
@@ -302,27 +393,37 @@ public class ProcessClient {
 		int newCategory = scan.nextInt();
 		scan.nextLine();
 		
+		Car newCar = null;
 		switch(newCategory) {
 		case 1:
-			gateway.addCar(new EconomicCar(newRenavam, newName, newCategory, newYear, newPrice));
+			newCar = new EconomicCar(newRenavam, newName, newCategory, newYear, newPrice);
+			//gateway.addCar(new EconomicCar(newRenavam, newName, newCategory, newYear, newPrice));
 			break;
 		case 2:
-			gateway.addCar(new IntermediaryCar(newRenavam, newName, newCategory, newYear, newPrice));
+			newCar = new IntermediaryCar(newRenavam, newName, newCategory, newYear, newPrice);
+			//gateway.addCar(new IntermediaryCar(newRenavam, newName, newCategory, newYear, newPrice));
 			break;
 		case 3:
-			gateway.addCar(new ExecutiveCar(newRenavam, newName, newCategory, newYear, newPrice));
+			newCar = new ExecutiveCar(newRenavam, newName, newCategory, newYear, newPrice);
+			//gateway.addCar(new ExecutiveCar(newRenavam, newName, newCategory, newYear, newPrice));
 			break;
 		default:
 			System.out.println("Opção inválida.");
 		}
 		
 		if(newCategory >= 1 && newCategory <= 3) {
+			String hmac = Hasher.hMac(myKeys.getHMACKey(), newCar.toString());
+			String msgEncrypted = Encrypter.fullEncrypt(myKeys, newCar.toString());
+			String signature = Encrypter.signMessage(myKeys, hmac);
+			
+			gateway.receiveMessage(new Message<String>(5, msgEncrypted, signature, clientNumber));
+			
 			System.out.println("--------------------");
 			System.out.println("Cadastrado com sucesso.");
 		}
 	}
 	
-	private static void editCar() throws RemoteException {
+	private static void editCar() throws RemoteException, InvalidKeyException, NoSuchAlgorithmException, UnsupportedEncodingException {
 		System.out.print("Digite o renavam do carro a ser alterado: ");
 		String toEditRenavam = scan.nextLine();
 		
@@ -367,13 +468,19 @@ public class ProcessClient {
 			System.out.println("Opção inválida.");
 		}
 		
-		gateway.editCar(toEditRenavam, new Car(toEditRenavam, editedName, editedCategory, editedYear, editedPrice));
+		//gateway.editCar(toEditRenavam, new Car(toEditRenavam, editedName, editedCategory, editedYear, editedPrice));
+		Car editedCar = new Car(toEditRenavam, editedName, editedCategory, editedYear, editedPrice);
+		String hmac = Hasher.hMac(myKeys.getHMACKey(), editedCar.toString());
+		String msgEncrypted = Encrypter.fullEncrypt(myKeys, editedCar.toString());
+		String signature = Encrypter.signMessage(myKeys, hmac);
+		
+		gateway.receiveMessage(new Message<String>(6, msgEncrypted, signature, clientNumber));
 		
 		System.out.println("--------------------");
 		System.out.println("Editado com sucesso.");
 	}
 	
-	private static void deleteCar() throws RemoteException {
+	private static void deleteCar() throws RemoteException, InvalidKeyException, NoSuchAlgorithmException, UnsupportedEncodingException {
 		System.out.println("EXCLUSÃO");
 		System.out.println("------------------");
 		System.out.println("[1] - Renavam");
@@ -382,13 +489,22 @@ public class ProcessClient {
 		System.out.print("Opção:");
 		int deleteOpc = scan.nextInt();
 		scan.nextLine();
-		
+
+		String hmac;
+		String msgEncrypted;
+		String signature;
 		switch(deleteOpc) {
 		case 1:
 			System.out.print("Digite o renavam do carro a ser excluído: ");
 			String toDeleteRenavam = scan.nextLine();
 			
-			gateway.deleteCar(toDeleteRenavam);
+			//gateway.deleteCar(toDeleteRenavam);
+			
+			hmac = Hasher.hMac(myKeys.getHMACKey(), toDeleteRenavam);
+			msgEncrypted = Encrypter.fullEncrypt(myKeys, toDeleteRenavam);
+			signature = Encrypter.signMessage(myKeys, hmac);
+			
+			gateway.receiveMessage(new Message<String>(7, msgEncrypted, signature, clientNumber));
 			
 			System.out.println("--------------------");
 			System.out.println("Carro com renavam " + toDeleteRenavam + " excluído com sucesso.");
@@ -397,7 +513,12 @@ public class ProcessClient {
 			System.out.print("Digite o nome dos carros a serem excluídos: ");
 			String toDeleteName = scan.nextLine();
 			
-			gateway.deleteCars(toDeleteName);
+			//gateway.deleteCars(toDeleteName);
+			hmac = Hasher.hMac(myKeys.getHMACKey(), toDeleteName);
+			msgEncrypted = Encrypter.fullEncrypt(myKeys, toDeleteName);
+			signature = Encrypter.signMessage(myKeys, hmac);
+			
+			gateway.receiveMessage(new Message<String>(777, msgEncrypted, signature, clientNumber));
 			
 			System.out.println("--------------------");
 			System.out.println("Todos os carros " + toDeleteName + " excluídos com sucesso.");
@@ -408,12 +529,19 @@ public class ProcessClient {
 		
 	}
 	
-	private static void buyCar() throws RemoteException {
+	private static void buyCar() throws RemoteException, InvalidKeyException, NoSuchAlgorithmException, UnsupportedEncodingException {
 		System.out.println("COMPRA DE CARRO");
 		System.out.println("------------------");
 		System.out.print("Renavam do carro:");
 		String renavamToBuy = scan.nextLine();
-		Car buyCar = gateway.searchCar(renavamToBuy);
+		//Car buyCar = gateway.searchCar(renavamToBuy);
+		
+		String hmac = Hasher.hMac(myKeys.getHMACKey(), renavamToBuy);
+		String msgEncrypted = Encrypter.fullEncrypt(myKeys, renavamToBuy);
+		String signature = Encrypter.signMessage(myKeys, hmac);
+		
+		Message<Car> response = (Message<Car>) gateway.receiveMessage(new Message<String>(2, msgEncrypted, signature, clientNumber));
+		Car buyCar = response.getContent();
 		
 		System.out.println("Nome: " + buyCar.getName());
 		System.out.println("Categoria: " + buyCar.getStringCategory());
@@ -428,7 +556,9 @@ public class ProcessClient {
 		case 'y':
 		case 'S':
 		case 's':
-			Car purchased = gateway.buyCar(renavamToBuy);
+			//Car purchased = gateway.buyCar(renavamToBuy);
+			response = (Message<Car>) gateway.receiveMessage(new Message<String>(3, msgEncrypted, signature, clientNumber));
+			Car purchased = response.getContent();
 			if(purchased != null) {
 				System.out.println("Compra efetuada com sucesso.");
 				System.out.println("Carro: " + purchased.getRenavam());
@@ -445,6 +575,14 @@ public class ProcessClient {
 			break;
 		default:
 			System.out.println("Opção inválida. Compra cancelada.");
+		}
+	}
+	
+	private static void tryAcessStorage() throws RemoteException {
+		List<Car> cars = storServer.listCars();
+		if(cars == null) {
+			System.out.println("------------------");
+			System.out.println("Você não possui permissão de acesso.");
 		}
 	}
 	
