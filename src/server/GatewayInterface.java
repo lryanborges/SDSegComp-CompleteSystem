@@ -7,6 +7,7 @@ import java.util.List;
 import datagrams.Message;
 import model.Car;
 import model.Keys;
+import model.RSAKeys;
 import model.User;
 
 public interface GatewayInterface extends Remote {
@@ -27,6 +28,7 @@ public interface GatewayInterface extends Remote {
 	public void putToSleep() throws RemoteException;
 	
 	public void addNewClientKeys(Integer clientNumber, Keys newClientKeys) throws RemoteException;
-	public Message receiveMessage(Message<String> msg) throws RemoteException;
+	public RSAKeys getRSAKeys() throws RemoteException;
+	public Message<String> receiveMessage(Message<String> msg) throws RemoteException;
 	
 }

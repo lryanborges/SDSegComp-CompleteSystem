@@ -335,7 +335,12 @@ public class Gateway implements GatewayInterface {
 	}
 	
 	@Override
-	public Message receiveMessage(Message<String> msg) throws RemoteException{
+	public RSAKeys getRSAKeys() throws RemoteException {
+		return new RSAKeys(myKeys.getRsaKeys().getPublicKey(), myKeys.getRsaKeys().getnMod());
+	}
+	
+	@Override
+	public Message<String> receiveMessage(Message<String> msg) throws RemoteException{
 		// permissões p serviço da loja
 		if(Gateway.getPermission(5002) || Gateway.getPermission(5003) || Gateway.getPermission(5004)) {
 			Keys currentClient = myClientKeys.get(msg.getClientSendingMsg());
@@ -348,26 +353,75 @@ public class Gateway implements GatewayInterface {
 					
 					boolean validSignature = Encrypter.verifySignature(currentClient.getRsaKeys(), realHMAC, msg.getMessageSignature());
 					
+					String hmac;
+					String msgEncrypted;
+					String signature;
+					String toEncrypt;
 					if(validSignature) {
 						switch(msg.getOperation()) {
 						case 1:
 							List<Car> response = this.listCars(Integer.parseInt(decryptedMsg)); // MUDARR O NUMERO PRO NUMERO DA MSG
-							return new Message<Car>(1, response, "aqui fica a assinatura do gateway dps");
+							
+							toEncrypt = "";
+							for(Car car : response) {
+								toEncrypt = toEncrypt + "¬" + car.toString();
+							}
+							
+							hmac = Hasher.hMac(currentClient.getHMACKey(), toEncrypt);
+							msgEncrypted = Encrypter.fullEncrypt(currentClient, toEncrypt);
+							signature = Encrypter.signMessage(myKeys, hmac);
+							
+							return new Message<String>(1, msgEncrypted, signature);
 						case 111: 
 							List<Car> response2 = this.listCars();
-							return new Message<Car>(111, response2, "aqui fica assinatura dps");
+							
+							toEncrypt = "";
+							for(Car car : response2) {
+								toEncrypt = toEncrypt + "¬" + car.toString();
+							}
+							
+							hmac = Hasher.hMac(currentClient.getHMACKey(), toEncrypt);
+							msgEncrypted = Encrypter.fullEncrypt(currentClient, toEncrypt);
+							signature = Encrypter.signMessage(myKeys, hmac);
+							
+							return new Message<String>(111, msgEncrypted, signature);
 						case 2:
 							Car response3 = this.searchCar(decryptedMsg);
-							return new Message<Car>(2, response3, "aqui fica assinatura");
+							
+							hmac = Hasher.hMac(currentClient.getHMACKey(), response3.toString());
+							msgEncrypted = Encrypter.fullEncrypt(currentClient, response3.toString());
+							signature = Encrypter.signMessage(myKeys, hmac);
+							
+							return new Message<String>(2, msgEncrypted, signature);
 						case 222:
 							List<Car> response4 = this.searchCars(decryptedMsg);
-							return new Message<Car>(222, response4, "assinatura");
+							
+							toEncrypt = ""; 
+							for(Car car : response4) {
+								toEncrypt = toEncrypt + "¬" + car.toString();
+							}
+							
+							hmac = Hasher.hMac(currentClient.getHMACKey(), toEncrypt);
+							msgEncrypted = Encrypter.fullEncrypt(currentClient, toEncrypt);
+							signature = Encrypter.signMessage(myKeys, hmac);
+							
+							return new Message<String>(222, msgEncrypted, signature);
 						case 3:
 							Car response5 = this.buyCar(decryptedMsg);
-							return new Message<Car>(3, response5, "assinatura");
+							
+							hmac = Hasher.hMac(currentClient.getHMACKey(), response5.toString());
+							msgEncrypted = Encrypter.fullEncrypt(currentClient, response5.toString());
+							signature = Encrypter.signMessage(myKeys, hmac);
+							
+							return new Message<String>(3, msgEncrypted, signature);
 						case 4:
 							Integer response6 = this.getAmount(Integer.parseInt(decryptedMsg));
-							return new Message<Integer>(4, response6, "assinatura");
+							
+							hmac = Hasher.hMac(currentClient.getHMACKey(), String.valueOf(response6));
+							msgEncrypted = Encrypter.fullEncrypt(currentClient, String.valueOf(response6));
+							signature = Encrypter.signMessage(myKeys, hmac);
+							
+							return new Message<String>(4, msgEncrypted, signature);
 						case 5:
 							String[] carPart = decryptedMsg.split("°");
 							int typeOfCar = Integer.parseInt(carPart[2]);
@@ -404,7 +458,6 @@ public class Gateway implements GatewayInterface {
 					}
 					
 				} catch (InvalidKeyException | NoSuchAlgorithmException | UnsupportedEncodingException e1) {
-					// TODO Auto-generated catch block
 					e1.printStackTrace();
 				}
 			} else {
