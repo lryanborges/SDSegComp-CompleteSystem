@@ -52,10 +52,10 @@ public class AuthenticationServer implements AuthInterface {
 			AuthInterface server = (AuthInterface) UnicastRemoteObject.exportObject(authServer, 0);
 
 			LocateRegistry.createRegistry(5001);
-			Registry register = LocateRegistry.getRegistry("127.0.0.1", 5001);
+			Registry register = LocateRegistry.getRegistry("26.95.199.60", 5001);
 			register.bind("Authentication", server);
 
-			gatewayPermission = new Permission("26.15.5.193", "26.15.5.193", 5001, "Autenticação", true);
+			gatewayPermission = new Permission("26.95.199.60", "26.95.199.60", 5001, "Autenticação", true);
 			
 			System.out.println("Servidor de Autenticação ligado.");
 
@@ -143,7 +143,7 @@ public class AuthenticationServer implements AuthInterface {
 			return true;
 		} else {
 			System.out.println("------------------------");
-			System.out.println("Firewall --> Pacote negado. Acesso: " + gatewayPermission.getName() + ", source: " + gatewayPermission.getSourceIp());
+			System.out.println("Firewall --> Pacote negado. Acesso: " + gatewayPermission.getName() + ", source: " + sourceIp);
 			return false;
 		}
 	}

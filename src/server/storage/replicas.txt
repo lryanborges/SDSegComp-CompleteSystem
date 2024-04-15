@@ -1,8 +1,8 @@
 LocateRegistry.createRegistry(5002);
-			Registry register = LocateRegistry.getRegistry("127.0.0.2", 5002);
+			Registry register = LocateRegistry.getRegistry("26.95.199.60", 5002);
 			register.bind("Storage1", server);
 
-			gatewayPermission = new Permission("26.15.5.193", "26.15.5.193", 5002, "Loja1", true);
+			gatewayPermission = new Permission("26.95.199.60", "26.95.199.60", 5002, "Loja1", true);
 
 			scanner.nextLine();
 
@@ -19,10 +19,10 @@ LocateRegistry.createRegistry(5002);
 
 
 LocateRegistry.createRegistry(5003);
-			Registry register = LocateRegistry.getRegistry("127.0.0.3", 5003);
+			Registry register = LocateRegistry.getRegistry("26.95.199.60", 5003);
 			register.bind("Storage2", server);
 
-			gatewayPermission = new Permission("26.15.5.193", "26.15.5.193", 5003, "Loja2", true);
+			gatewayPermission = new Permission("26.95.199.60", "26.95.199.60", 5003, "Loja2", true);
 
 			scanner.nextLine();
 
@@ -39,10 +39,10 @@ LocateRegistry.createRegistry(5003);
 
 
 LocateRegistry.createRegistry(5004);
-			Registry register = LocateRegistry.getRegistry("127.0.0.4", 5004);
+			Registry register = LocateRegistry.getRegistry("26.95.199.60", 5004);
 			register.bind("Storage3", server);
 
-			gatewayPermission = new Permission("26.15.5.193", "26.15.5.193", 5004, "Loja3", true);
+			gatewayPermission = new Permission("26.95.199.60", "26.95.199.60", 5004, "Loja3", true);
 
 			scanner.nextLine();
 

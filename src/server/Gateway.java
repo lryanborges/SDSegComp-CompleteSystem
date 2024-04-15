@@ -67,22 +67,22 @@ public class Gateway implements GatewayInterface {
 		myKeys.setRsaKeys(new RSAKeys(myRsaKeys.getPublicKey(), myRsaKeys.getnMod()));
 		
 		try {
-			Registry authRegister = LocateRegistry.getRegistry("127.0.0.1", 5001);
+			Registry authRegister = LocateRegistry.getRegistry("26.95.199.60", 5001);
 			authServer = (AuthInterface) authRegister.lookup(authenticationHostName);
 			
-			Registry stgRegister = LocateRegistry.getRegistry("127.0.0.2", 5002);
+			Registry stgRegister = LocateRegistry.getRegistry("26.95.199.60", 5002);
 			storServer = (StorageInterface) stgRegister.lookup(storageHostName[0]);
 			storServer.addNewClientKeys(myKeys);
 			storageKeys.put(storServer, storServer.getRSAKeys());
 			stores.add(storServer);
-
-			stgRegister = LocateRegistry.getRegistry("127.0.0.3", 5003);
+			
+			stgRegister = LocateRegistry.getRegistry("26.95.199.60", 5003);
 			storServer = (StorageInterface) stgRegister.lookup(storageHostName[1]);
 			storServer.addNewClientKeys(myKeys);
 			storageKeys.put(storServer, storServer.getRSAKeys());
 			stores.add(storServer);
 
-			stgRegister = LocateRegistry.getRegistry("127.0.0.4", 5004);
+			stgRegister = LocateRegistry.getRegistry("26.95.199.60", 5004);
 			storServer = (StorageInterface) stgRegister.lookup(storageHostName[2]);
 			storServer.addNewClientKeys(myKeys);
 			storageKeys.put(storServer, storServer.getRSAKeys());
@@ -95,7 +95,7 @@ public class Gateway implements GatewayInterface {
 			GatewayInterface protocol = (GatewayInterface) UnicastRemoteObject.exportObject(gateway, 0);
 			
 			LocateRegistry.createRegistry(5000);
-			register = LocateRegistry.getRegistry("127.0.0.10", 5000);
+			register = LocateRegistry.getRegistry("26.95.199.60", 5000);
 			register.bind("Gateway", protocol);
 			
 			System.out.println("Gateway ligado...");
@@ -629,10 +629,10 @@ public class Gateway implements GatewayInterface {
 		permissions.add(new Permission("10.215.34.54", "10.215.34.54", 5003, "Loja2", true));
 		permissions.add(new Permission("10.215.34.54", "10.215.34.54", 5004, "Loja3", true));
 
-		permissions.add(new Permission("192.168.137.163", "192.168.137.1", 5001, "Autenticação", true));
-		permissions.add(new Permission("192.168.137.163", "192.168.137.1", 5002, "Loja1", true));
-		permissions.add(new Permission("192.168.137.163", "192.168.137.1", 5003, "Loja2", true));
-		permissions.add(new Permission("192.168.137.163", "192.168.137.1", 5004, "Loja3", true));
+		permissions.add(new Permission("192.168.137.192", "192.168.137.1", 5001, "Autenticação", true));
+		permissions.add(new Permission("192.168.137.192", "192.168.137.1", 5002, "Loja1", true));
+		permissions.add(new Permission("192.168.137.192", "192.168.137.1", 5003, "Loja2", true));
+		permissions.add(new Permission("192.168.137.192", "192.168.137.1", 5004, "Loja3", true));
 
 		// Vinicius
 		permissions.add(new Permission("26.15.5.193", "26.15.5.193", 5001, "Autenticação", true));
@@ -645,6 +645,18 @@ public class Gateway implements GatewayInterface {
 		permissions.add(new Permission("192.168.137.1", "192.168.137.1", 5002, "Loja1", true));
 		permissions.add(new Permission("192.168.137.1", "192.168.137.1", 5003, "Loja2", true));
 		permissions.add(new Permission("192.168.137.1", "192.168.137.1", 5004, "Loja3", true));
+		
+		//radmin
+		permissions.add(new Permission("26.95.199.60", "26.95.199.60", 5001, "Autenticação", true));
+		permissions.add(new Permission("26.95.199.60", "26.95.199.60", 5002, "Loja1", true));
+		permissions.add(new Permission("26.95.199.60", "26.95.199.60", 5003, "Loja2", true));
+		permissions.add(new Permission("26.95.199.60", "26.95.199.60", 5004, "Loja3", true));
+		
+		//radmin vinicius
+		permissions.add(new Permission("26.15.5.193", "26.95.199.60", 5001, "Autenticação", true));
+		permissions.add(new Permission("26.15.5.193", "26.95.199.60", 5002, "Loja1", true));
+		permissions.add(new Permission("26.15.5.193", "26.95.199.60", 5003, "Loja2", true));
+		permissions.add(new Permission("26.15.5.193", "26.95.199.60", 5004, "Loja3", true));
 	}
 	
 }

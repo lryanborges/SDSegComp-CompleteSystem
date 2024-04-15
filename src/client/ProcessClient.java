@@ -60,11 +60,11 @@ public class ProcessClient {
 		myKeys.setRsaKeys(new RSAKeys(myRsaKeys.getPublicKey(), myRsaKeys.getnMod()));
 		
 		try {
-			Registry gatRegister = LocateRegistry.getRegistry("127.0.0.10", 5000);
+			Registry gatRegister = LocateRegistry.getRegistry("26.95.199.60", 5000);
 			gateway = (GatewayInterface) gatRegister.lookup("Gateway");
 			
 			// pra demonstração do firewall
-			Registry storRegister = LocateRegistry.getRegistry("127.0.0.2", 5002);
+			Registry storRegister = LocateRegistry.getRegistry("26.95.199.60", 5002);
 			storServer = (StorageInterface) storRegister.lookup("Storage1");
 			
 			gateway.addNewClientKeys(clientNumber, myKeys); // manda suas chaves pro server
@@ -384,6 +384,7 @@ public class ProcessClient {
 					break;
 				case 5454:
 					tryAcessStorage();
+					break;
 				default:
 					System.out.println("Opção inválida.");
 				
