@@ -4,7 +4,9 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.List;
 
+import datagrams.Message;
 import model.Car;
+import model.Keys;
 
 public interface StorageInterface extends Remote {
 
@@ -25,4 +27,6 @@ public interface StorageInterface extends Remote {
 	public StorageInterface startElections() throws RemoteException;
 	public void setFollowers() throws RemoteException;
 	
+	public void addNewClientKeys(Keys newClientKeys) throws RemoteException;
+	public Message receiveMessage(Message<String> msg) throws RemoteException;	
 }
