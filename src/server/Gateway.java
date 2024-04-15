@@ -13,8 +13,10 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import crypto.Encrypter;
 import crypto.Hasher;
@@ -36,6 +38,8 @@ public class Gateway implements GatewayInterface {
 
 	private static Keys myKeys;
 	private static Map<Integer, Keys> myClientKeys;
+	private static Map<StorageInterface, RSAKeys> storageKeys;
+	private static RSAKeys currentStorKeys;
 	
 	static String authenticationHostName = "Authentication";
 	static String storageHostName[] = {"Storage1","Storage2","Storage3"};
@@ -52,6 +56,7 @@ public class Gateway implements GatewayInterface {
 		stores = new ArrayList<>();
 		myKeys = new Keys();
 		myClientKeys = new HashMap<Integer, Keys>();
+		storageKeys = new HashMap<StorageInterface, RSAKeys>();
 		permissions = new ArrayList<Permission>();
 		Gateway.setPermissions();
 		
@@ -70,20 +75,24 @@ public class Gateway implements GatewayInterface {
 			Registry stgRegister = LocateRegistry.getRegistry("127.0.0.2", 5002);
 			storServer = (StorageInterface) stgRegister.lookup(storageHostName[0]);
 			storServer.addNewClientKeys(myKeys);
+			storageKeys.put(storServer, storServer.getRSAKeys());
 			stores.add(storServer);
 
 			stgRegister = LocateRegistry.getRegistry("127.0.0.3", 5003);
 			storServer = (StorageInterface) stgRegister.lookup(storageHostName[1]);
 			storServer.addNewClientKeys(myKeys);
+			storageKeys.put(storServer, storServer.getRSAKeys());
 			stores.add(storServer);
 
 			stgRegister = LocateRegistry.getRegistry("127.0.0.4", 5004);
 			storServer = (StorageInterface) stgRegister.lookup(storageHostName[2]);
 			storServer.addNewClientKeys(myKeys);
+			storageKeys.put(storServer, storServer.getRSAKeys());
 			stores.add(storServer);
 
 			storServer = stores.get(0);
 			myKeys.getRsaKeys().setPrivateKey(myRsaKeys.getPrivateKey()); // agora sim add a chave privada dps de enviar pro server sem
+			currentStorKeys = storageKeys.get(storServer);
 			
 			GatewayInterface protocol = (GatewayInterface) UnicastRemoteObject.exportObject(gateway, 0);
 			
@@ -137,6 +146,7 @@ public class Gateway implements GatewayInterface {
 			}
 			else if(store.getRole() == ServerRole.OUTOFORDER) {
 				storServer = store.startElections();
+				currentStorKeys = storageKeys.get(storServer);
 				this.addCar(newCar);
 			}
 		}
@@ -155,6 +165,7 @@ public class Gateway implements GatewayInterface {
 			}
 			else if(store.getRole() == ServerRole.OUTOFORDER) {
 				storServer = store.startElections();
+				currentStorKeys = storageKeys.get(storServer);
 				this.editCar(renavam, editedCar);
 			}
 		}
@@ -172,6 +183,7 @@ public class Gateway implements GatewayInterface {
 			}
 			else if(store.getRole() == ServerRole.OUTOFORDER) {
 				storServer = store.startElections();
+				currentStorKeys = storageKeys.get(storServer);
 				this.deleteCar(renavam);
 			}
 		}
@@ -190,6 +202,7 @@ public class Gateway implements GatewayInterface {
 			}
 			else if(store.getRole() == ServerRole.OUTOFORDER) {
 				storServer = store.startElections();
+				currentStorKeys = storageKeys.get(storServer);
 				this.deleteCars(name);
 			}
 		}
@@ -210,11 +223,31 @@ public class Gateway implements GatewayInterface {
 			String msgEncrypted = Encrypter.fullEncrypt(myKeys, "push to pull");
 			String signature = Encrypter.signMessage(myKeys, hmac);
 			
-			Message<Car> response = (Message<Car>) storServer.receiveMessage(new Message<String>(111, msgEncrypted, signature));
-			List<Car> findedCars = response.getListContent();
-			return findedCars;
+			Message<String> response = storServer.receiveMessage(new Message<String>(111, msgEncrypted, signature));
+			
+			String decryptedMsg = Encrypter.fullDecrypt(myKeys, response.getContent());
+			String realHMAC = Hasher.hMac(myKeys.getHMACKey(), decryptedMsg);
+				
+			boolean validSignature = Encrypter.verifySignature(currentStorKeys, realHMAC, response.getMessageSignature());
+			
+			List<Car> findedCars = new ArrayList<Car>();
+			if(validSignature) {
+				String stringCars[] = decryptedMsg.split("¬");
+				for(String stringCar : stringCars) {
+					if(stringCar != "") {
+						String partsCar[] = stringCar.split("°");
+						findedCars.add(new Car(partsCar[0], partsCar[1], Integer.parseInt(partsCar[2]), partsCar[3], Double.parseDouble(partsCar[4])));
+					}
+				}
+				
+				return findedCars;
+			} else {
+				System.out.println("Assinatura incorreta. Servidor inválido.");
+			}
+			
 		}
 		storServer = storServer.startElections();
+		currentStorKeys = storageKeys.get(storServer);
 		return this.listCars();
 	}
 
@@ -233,11 +266,30 @@ public class Gateway implements GatewayInterface {
 			String msgEncrypted = Encrypter.fullEncrypt(myKeys, String.valueOf(category));
 			String signature = Encrypter.signMessage(myKeys, hmac);
 			
-			Message<Car> response = (Message<Car>) storServer.receiveMessage(new Message<String>(1, msgEncrypted, signature));
-			List<Car> findedCars = response.getListContent();
-			return findedCars;
+			Message<String> response = storServer.receiveMessage(new Message<String>(1, msgEncrypted, signature));
+			
+			String decryptedMsg = Encrypter.fullDecrypt(myKeys, response.getContent());
+			String realHMAC = Hasher.hMac(myKeys.getHMACKey(), decryptedMsg);
+				
+			boolean validSignature = Encrypter.verifySignature(currentStorKeys, realHMAC, response.getMessageSignature());
+			
+			List<Car> findedCars = new ArrayList<Car>();
+			if(validSignature) {
+				String stringCars[] = decryptedMsg.split("¬");
+				for(String stringCar : stringCars) {
+					if(stringCar != "") {
+						String partsCar[] = stringCar.split("°");
+						findedCars.add(new Car(partsCar[0], partsCar[1], Integer.parseInt(partsCar[2]), partsCar[3], Double.parseDouble(partsCar[4])));
+					}
+				}
+				
+				return findedCars;
+			} else {
+				System.out.println("Assinatura incorreta. Servidor inválido.");
+			}
 		}
 		storServer = storServer.startElections();
+		currentStorKeys = storageKeys.get(storServer);
 		return this.listCars(category);
 	}
 	
@@ -256,11 +308,29 @@ public class Gateway implements GatewayInterface {
 			String msgEncrypted = Encrypter.fullEncrypt(myKeys, renavam);
 			String signature = Encrypter.signMessage(myKeys, hmac);
 			
-			Message<Car> response = (Message<Car>) storServer.receiveMessage(new Message<String>(2, msgEncrypted, signature));
-			Car findedCar = response.getContent();
-			return findedCar;
+			Message<String> response = storServer.receiveMessage(new Message<String>(2, msgEncrypted, signature));
+			
+			String decryptedMsg = Encrypter.fullDecrypt(myKeys, response.getContent());
+			String realHMAC = Hasher.hMac(myKeys.getHMACKey(), decryptedMsg);
+				
+			boolean validSignature = Encrypter.verifySignature(currentStorKeys, realHMAC, response.getMessageSignature());
+			
+			if(validSignature) {
+				String partsCar[] = decryptedMsg.split("°");
+				Car findedCar = new Car(partsCar[0], partsCar[1], Integer.parseInt(partsCar[2]), partsCar[3], Double.parseDouble(partsCar[4]));
+				
+				if(!findedCar.getName().equals("null")) {
+					return findedCar;
+				} else {
+					System.out.println("Carro não encontrado.");
+				}
+				
+			} else {
+				System.out.println("Assinatura incorreta. Servidor inválido.");
+			}
 		}
 		storServer = storServer.startElections();
+		currentStorKeys = storageKeys.get(storServer);
 		return this.searchCar(renavam);
 	}
 
@@ -279,11 +349,30 @@ public class Gateway implements GatewayInterface {
 			String msgEncrypted = Encrypter.fullEncrypt(myKeys, name);
 			String signature = Encrypter.signMessage(myKeys, hmac);
 			
-			Message<Car> response = (Message<Car>) storServer.receiveMessage(new Message<String>(222, msgEncrypted, signature));
-			List<Car> findedCars = response.getListContent();
-			return findedCars;
+			Message<String> response = storServer.receiveMessage(new Message<String>(222, msgEncrypted, signature));
+
+			String decryptedMsg = Encrypter.fullDecrypt(myKeys, response.getContent());
+			String realHMAC = Hasher.hMac(myKeys.getHMACKey(), decryptedMsg);
+				
+			boolean validSignature = Encrypter.verifySignature(currentStorKeys, realHMAC, response.getMessageSignature());
+			
+			List<Car> findedCars = new ArrayList<Car>();
+			if(validSignature) {
+				String stringCars[] = decryptedMsg.split("¬");
+				for(String stringCar : stringCars) {
+					if(stringCar != "") {
+						String partsCar[] = stringCar.split("°");
+						findedCars.add(new Car(partsCar[0], partsCar[1], Integer.parseInt(partsCar[2]), partsCar[3], Double.parseDouble(partsCar[4])));
+					}
+				}
+				
+				return findedCars;
+			} else {
+				System.out.println("Assinatura incorreta. Servidor inválido.");
+			}
 		}
 		storServer = storServer.startElections();
+		currentStorKeys = storageKeys.get(storServer);
 		return this.searchCars(name);
 	}
 	
@@ -296,12 +385,31 @@ public class Gateway implements GatewayInterface {
 				String msgEncrypted = Encrypter.fullEncrypt(myKeys, renavam);
 				String signature = Encrypter.signMessage(myKeys, hmac);
 				
-				Message<Car> response = (Message<Car>) storServer.receiveMessage(new Message<String>(3, msgEncrypted, signature));
-				Car findedCar = response.getContent();
-				return findedCar;
+				Message<String> response = storServer.receiveMessage(new Message<String>(3, msgEncrypted, signature));
+
+				String decryptedMsg = Encrypter.fullDecrypt(myKeys, response.getContent());
+				String realHMAC = Hasher.hMac(myKeys.getHMACKey(), decryptedMsg);
+					
+				boolean validSignature = Encrypter.verifySignature(currentStorKeys, realHMAC, response.getMessageSignature());
+				
+				if(validSignature) {
+					String partsCar[] = decryptedMsg.split("°");
+					Car findedCar = new Car(partsCar[0], partsCar[1], Integer.parseInt(partsCar[2]), partsCar[3], Double.parseDouble(partsCar[4]));
+					
+					if(!findedCar.getName().equals("null")) {
+						return findedCar;
+					} else {
+						System.out.println("Carro não encontrado.");
+					}
+					
+				} else {
+					System.out.println("Assinatura incorreta. Servidor inválido.");
+				}
+				
 			}
 			else if(store.getRole() == ServerRole.OUTOFORDER) {
 				storServer = storServer.startElections();
+				currentStorKeys = storageKeys.get(storServer);
 			}
 		}
 		return null;
@@ -505,6 +613,11 @@ public class Gateway implements GatewayInterface {
 		permissions.add(new Permission("192.168.1.105", "127.0.0.2", 5002, "Loja1", true));
 		permissions.add(new Permission("192.168.1.105", "127.0.0.3", 5003, "Loja2", true));
 		permissions.add(new Permission("192.168.1.105", "127.0.0.4", 5004, "Loja3", true));
+		
+		permissions.add(new Permission("10.215.34.54", "10.215.34.54", 5001, "Autenticação", true));
+		permissions.add(new Permission("10.215.34.54", "10.215.34.54", 5002, "Loja1", true));
+		permissions.add(new Permission("10.215.34.54", "10.215.34.54", 5003, "Loja2", true));
+		permissions.add(new Permission("10.215.34.54", "10.215.34.54", 5004, "Loja3", true));
 	}
 	
 }

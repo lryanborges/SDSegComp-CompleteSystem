@@ -28,6 +28,7 @@ import java.util.Map.Entry;
 
 import crypto.Encrypter;
 import crypto.Hasher;
+import crypto.MyKeyGenerator;
 import datagrams.Message;
 import datagrams.Permission;
 import model.Car;
@@ -35,11 +36,13 @@ import model.EconomicCar;
 import model.ExecutiveCar;
 import model.IntermediaryCar;
 import model.Keys;
+import model.RSAKeys;
 import server.Gateway;
 
 public class StorageServer implements StorageInterface {
 
 	private static Keys gatewayKeys;
+	private static RSAKeys myRSAKeys;
 	
 	private static String path[] = {"src/server/storage/cars.txt", "src/server/storage/cars2.txt", "src/server/storage/cars3.txt"};
 	private static HashMap<String, Car> cars;
@@ -81,15 +84,16 @@ public class StorageServer implements StorageInterface {
 		
 		StorageServer storServer = new StorageServer(ServerRole.FOLLOWER);
 		scanner = new Scanner(System.in);
+		myRSAKeys = MyKeyGenerator.generateKeysRSA();
 
 		try {
 			StorageInterface server = (StorageInterface) UnicastRemoteObject.exportObject(storServer, 0);
-
+			
 			LocateRegistry.createRegistry(5004);
 			Registry register = LocateRegistry.getRegistry("127.0.0.4", 5004);
 			register.bind("Storage3", server);
 
-			gatewayPermission = new Permission("192.168.1.105", "192.168.1.105", 5004, "Loja3", true);
+			gatewayPermission = new Permission("10.215.34.54", "10.215.34.54", 5004, "Loja3", true);
 
 			scanner.nextLine();
 
@@ -111,7 +115,7 @@ public class StorageServer implements StorageInterface {
 	}
 
 	@Override
-	public void addCar(Car newCar) {
+	synchronized public void addCar(Car newCar) {
 		cars = getFileCars(); // pega do arquivo e bota no mapa
 
 		if(role == ServerRole.LEADER) {
@@ -122,7 +126,7 @@ public class StorageServer implements StorageInterface {
 	}
 
 	@Override
-	public void editCar(String renavam, Car editedCar) {
+	synchronized public void editCar(String renavam, Car editedCar) {
 		cars = getFileCars(); // att o mapa pra versao mais recente
 		Car editCar = searchCar(renavam);
 		
@@ -170,7 +174,7 @@ public class StorageServer implements StorageInterface {
 	}
 
 	@Override
-	public void deleteCar(String renavam) {
+	synchronized public void deleteCar(String renavam) {
 		cars = getFileCars(); // att o mapa pra versao mais recente
 		Car deleteCar = searchCar(renavam);
 		
@@ -185,7 +189,7 @@ public class StorageServer implements StorageInterface {
 	}
 	
 	@Override
-	public void deleteCars(String name) {
+	synchronized public void deleteCars(String name) {
 		cars = getFileCars(); // att o mapa pra versao mais recente
 		List<Car> deleteCars = searchCars(name);
 		
@@ -272,7 +276,7 @@ public class StorageServer implements StorageInterface {
 	}
 
 	@Override
-	public Car buyCar(String renavam) {
+	synchronized public Car buyCar(String renavam) {
 		
 		if(role == ServerRole.LEADER) {
 			Car purchased = searchCar(renavam);
@@ -424,6 +428,10 @@ public class StorageServer implements StorageInterface {
 		gatewayKeys = newClientKeys;
 	}
 	
+	public RSAKeys getRSAKeys() throws RemoteException {
+		return new RSAKeys(myRSAKeys.getPublicKey(), myRSAKeys.getnMod());
+	}
+	
 	@Override
 	public Message receiveMessage(Message<String> msg) throws RemoteException {
 		// permissões p serviço da loja
@@ -433,31 +441,81 @@ public class StorageServer implements StorageInterface {
 			if(currentClient != null) {
 				String decryptedMsg = Encrypter.fullDecrypt(currentClient, msg.getContent());
 				String realHMAC;
+				
 				try {
 					realHMAC = Hasher.hMac(currentClient.getHMACKey(), decryptedMsg);
 					
 					boolean validSignature = Encrypter.verifySignature(currentClient.getRsaKeys(), realHMAC, msg.getMessageSignature());
 					
+					String hmac;
+					String msgEncrypted;
+					String signature;
+					String toEncrypt;
 					if(validSignature) {
 						switch(msg.getOperation()) {
 						case 1:
 							List<Car> response = this.listCars(Integer.parseInt(decryptedMsg)); // MUDARR O NUMERO PRO NUMERO DA MSG
-							return new Message<Car>(1, response, "aqui fica a assinatura do server dps");
+
+							toEncrypt = "";
+							for(Car car : response) {
+								toEncrypt = toEncrypt + "¬" + car.toString();
+							}
+							
+							hmac = Hasher.hMac(currentClient.getHMACKey(), toEncrypt);
+							msgEncrypted = Encrypter.fullEncrypt(currentClient, toEncrypt);
+							signature = Encrypter.signMessage(myRSAKeys, hmac);
+							
+							return new Message<String>(1, msgEncrypted, signature);
 						case 111: 
 							List<Car> response2 = this.listCars();
-							return new Message<Car>(111, response2, "aqui fica assinatura dps");
+							
+							toEncrypt = "";
+							for(Car car : response2) {
+								toEncrypt = toEncrypt + "¬" + car.toString();
+							}
+							
+							hmac = Hasher.hMac(currentClient.getHMACKey(), toEncrypt);
+							msgEncrypted = Encrypter.fullEncrypt(currentClient, toEncrypt);
+							signature = Encrypter.signMessage(myRSAKeys, hmac);
+							
+							return new Message<String>(111, msgEncrypted, signature);
 						case 2:
 							Car response3 = this.searchCar(decryptedMsg);
-							return new Message<Car>(2, response3, "aqui fica assinatura");
+
+							hmac = Hasher.hMac(currentClient.getHMACKey(), response3.toString());
+							msgEncrypted = Encrypter.fullEncrypt(currentClient, response3.toString());
+							signature = Encrypter.signMessage(myRSAKeys, hmac);
+							
+							return new Message<String>(2, msgEncrypted, signature);
 						case 222:
 							List<Car> response4 = this.searchCars(decryptedMsg);
-							return new Message<Car>(222, response4, "assinatura");
+
+							toEncrypt = ""; 
+							for(Car car : response4) {
+								toEncrypt = toEncrypt + "¬" + car.toString();
+							}
+							
+							hmac = Hasher.hMac(currentClient.getHMACKey(), toEncrypt);
+							msgEncrypted = Encrypter.fullEncrypt(currentClient, toEncrypt);
+							signature = Encrypter.signMessage(myRSAKeys, hmac);
+							
+							return new Message<String>(222, msgEncrypted, signature);
 						case 3:
 							Car response5 = this.buyCar(decryptedMsg);
-							return new Message<Car>(3, response5, "assinatura");
+
+							hmac = Hasher.hMac(currentClient.getHMACKey(), response5.toString());
+							msgEncrypted = Encrypter.fullEncrypt(currentClient, response5.toString());
+							signature = Encrypter.signMessage(myRSAKeys, hmac);
+							
+							return new Message<String>(3, msgEncrypted, signature);
 						case 4:
 							Integer response6 = this.getAmount(Integer.parseInt(decryptedMsg));
-							return new Message<Integer>(4, response6, "assinatura");
+
+							hmac = Hasher.hMac(currentClient.getHMACKey(), String.valueOf(response6));
+							msgEncrypted = Encrypter.fullEncrypt(currentClient, String.valueOf(response6));
+							signature = Encrypter.signMessage(myRSAKeys, hmac);
+							
+							return new Message<String>(4, msgEncrypted, signature);
 						case 5:
 							String[] carPart = decryptedMsg.split("°");
 							int typeOfCar = Integer.parseInt(carPart[2]);

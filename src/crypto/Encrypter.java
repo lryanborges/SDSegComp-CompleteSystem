@@ -141,4 +141,22 @@ public class Encrypter {
 		
 		return base64Next;
 	}
+	
+	public static String signMessage(RSAKeys keys, String HMAC) {
+		
+		String base64Next = "";
+		
+		for(int i = 0; i < HMAC.length(); i++) {
+			char nextChar = HMAC.charAt(i);
+			int number = (int) nextChar;
+			
+			BigInteger next = new BigInteger(Integer.toString(number));
+			
+			BigInteger codedNext = next.modPow(keys.getPrivateKey(), keys.getnMod());
+			
+			base64Next = base64Next + "#" + Base64.getEncoder().encodeToString(codedNext.toByteArray());
+		}
+		
+		return base64Next;
+	}
 }

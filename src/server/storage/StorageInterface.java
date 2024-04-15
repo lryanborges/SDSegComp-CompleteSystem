@@ -7,6 +7,7 @@ import java.util.List;
 import datagrams.Message;
 import model.Car;
 import model.Keys;
+import model.RSAKeys;
 
 public interface StorageInterface extends Remote {
 
@@ -28,5 +29,6 @@ public interface StorageInterface extends Remote {
 	public void setFollowers() throws RemoteException;
 	
 	public void addNewClientKeys(Keys newClientKeys) throws RemoteException;
+	public RSAKeys getRSAKeys() throws RemoteException;
 	public Message receiveMessage(Message<String> msg) throws RemoteException;	
 }
