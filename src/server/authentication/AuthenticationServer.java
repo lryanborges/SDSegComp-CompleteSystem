@@ -55,7 +55,7 @@ public class AuthenticationServer implements AuthInterface {
 			Registry register = LocateRegistry.getRegistry("127.0.0.1", 5001);
 			register.bind("Authentication", server);
 
-			gatewayPermission = new Permission("10.215.34.54", "10.215.34.54", 5001, "Autenticação", true);
+			gatewayPermission = new Permission("26.15.5.193", "26.15.5.193", 5001, "Autenticação", true);
 			
 			System.out.println("Servidor de Autenticação ligado.");
 

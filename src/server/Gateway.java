@@ -13,10 +13,8 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import crypto.Encrypter;
 import crypto.Hasher;
@@ -420,10 +418,20 @@ public class Gateway implements GatewayInterface {
 		String msgEncrypted = Encrypter.fullEncrypt(myKeys, String.valueOf(category));
 		String signature = Encrypter.signMessage(myKeys, hmac);
 		
-		Message<Integer> responseInt = (Message<Integer>) storServer.receiveMessage(new Message<String>(4, msgEncrypted, signature));
-		int amount = responseInt.getContent();
+		Message<String> response = storServer.receiveMessage(new Message<String>(4, msgEncrypted, signature));
+		//int amount = responseInt.getContent();
 		
-		return amount;
+		String decryptedMsg = Encrypter.fullDecrypt(myKeys, response.getContent());
+		String realHMAC = Hasher.hMac(myKeys.getHMACKey(), decryptedMsg);
+			
+		boolean validSignature = Encrypter.verifySignature(currentStorKeys, realHMAC, response.getMessageSignature());
+		
+		if(validSignature) {
+			return Integer.parseInt(decryptedMsg);
+		}
+
+		return 0;
+
 	}
 
 	@Override
@@ -584,6 +592,8 @@ public class Gateway implements GatewayInterface {
 		} catch (ServerNotActiveException e1) {
 			e1.printStackTrace();
 		}
+
+		System.out.println(clientHost);
 		
 		for(Permission perm : permissions) {
 			if(perm.getSourceIp().equals(clientHost) && perm.getDestinationPort() == destPort) {
@@ -618,6 +628,23 @@ public class Gateway implements GatewayInterface {
 		permissions.add(new Permission("10.215.34.54", "10.215.34.54", 5002, "Loja1", true));
 		permissions.add(new Permission("10.215.34.54", "10.215.34.54", 5003, "Loja2", true));
 		permissions.add(new Permission("10.215.34.54", "10.215.34.54", 5004, "Loja3", true));
+
+		permissions.add(new Permission("192.168.137.163", "192.168.137.1", 5001, "Autenticação", true));
+		permissions.add(new Permission("192.168.137.163", "192.168.137.1", 5002, "Loja1", true));
+		permissions.add(new Permission("192.168.137.163", "192.168.137.1", 5003, "Loja2", true));
+		permissions.add(new Permission("192.168.137.163", "192.168.137.1", 5004, "Loja3", true));
+
+		// Vinicius
+		permissions.add(new Permission("26.15.5.193", "26.15.5.193", 5001, "Autenticação", true));
+		permissions.add(new Permission("26.15.5.193", "26.15.5.193", 5002, "Loja1", true));
+		permissions.add(new Permission("26.15.5.193", "26.15.5.193", 5003, "Loja2", true));
+		permissions.add(new Permission("26.15.5.193", "26.15.5.193", 5004, "Loja3", true));
+
+		// Vinicius
+		permissions.add(new Permission("192.168.137.1", "192.168.137.1", 5001, "Autenticação", true));
+		permissions.add(new Permission("192.168.137.1", "192.168.137.1", 5002, "Loja1", true));
+		permissions.add(new Permission("192.168.137.1", "192.168.137.1", 5003, "Loja2", true));
+		permissions.add(new Permission("192.168.137.1", "192.168.137.1", 5004, "Loja3", true));
 	}
 	
 }

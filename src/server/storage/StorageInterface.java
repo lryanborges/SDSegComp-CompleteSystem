@@ -30,5 +30,5 @@ public interface StorageInterface extends Remote {
 	
 	public void addNewClientKeys(Keys newClientKeys) throws RemoteException;
 	public RSAKeys getRSAKeys() throws RemoteException;
-	public Message receiveMessage(Message<String> msg) throws RemoteException;	
+	public Message<String> receiveMessage(Message<String> msg) throws RemoteException;	
 }
