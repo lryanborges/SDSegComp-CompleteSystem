@@ -79,27 +79,27 @@ public class StorageServer implements StorageInterface {
 	
 	public static void main(String[] args) {
 		
-		StorageServer storServer = new StorageServer(ServerRole.LEADER);
+		StorageServer storServer = new StorageServer(ServerRole.FOLLOWER);
 		scanner = new Scanner(System.in);
 
 		try {
 			StorageInterface server = (StorageInterface) UnicastRemoteObject.exportObject(storServer, 0);
 
-			LocateRegistry.createRegistry(5002);
-			Registry register = LocateRegistry.getRegistry("127.0.0.2", 5002);
-			register.bind("Storage1", server);
+			LocateRegistry.createRegistry(5004);
+			Registry register = LocateRegistry.getRegistry("127.0.0.4", 5004);
+			register.bind("Storage3", server);
 
-			gatewayPermission = new Permission("192.168.1.105", "192.168.1.105", 5002, "Loja1", true);
+			gatewayPermission = new Permission("192.168.1.105", "192.168.1.105", 5004, "Loja3", true);
 
 			scanner.nextLine();
 
-			Registry follower = LocateRegistry.getRegistry(5003);
-			followerServer1 = (StorageInterface) follower.lookup("Storage2");
+			Registry follower = LocateRegistry.getRegistry(5002);
+			followerServer1 = (StorageInterface) follower.lookup("Storage1");
 
-			follower = LocateRegistry.getRegistry(5004);
-			followerServer2 = (StorageInterface) follower.lookup("Storage3");
+			follower = LocateRegistry.getRegistry(5003);
+			followerServer2 = (StorageInterface) follower.lookup("Storage2");
 
-			System.out.println("Servidor de Armazenamento-1 ligado.");
+			System.out.println("Servidor de Armazenamento-3 ligado.");
 
 
 		} catch (RemoteException | AlreadyBoundException e) {
