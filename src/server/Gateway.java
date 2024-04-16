@@ -1,6 +1,10 @@
 package server;
 
 import java.io.UnsupportedEncodingException;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -67,22 +71,22 @@ public class Gateway implements GatewayInterface {
 		myKeys.setRsaKeys(new RSAKeys(myRsaKeys.getPublicKey(), myRsaKeys.getnMod()));
 		
 		try {
-			Registry authRegister = LocateRegistry.getRegistry("26.95.199.60", 5001);
+			Registry authRegister = LocateRegistry.getRegistry("localhost", 5001);
 			authServer = (AuthInterface) authRegister.lookup(authenticationHostName);
 			
-			Registry stgRegister = LocateRegistry.getRegistry("26.95.199.60", 5002);
+			Registry stgRegister = LocateRegistry.getRegistry("localhost", 5002);
 			storServer = (StorageInterface) stgRegister.lookup(storageHostName[0]);
 			storServer.addNewClientKeys(myKeys);
 			storageKeys.put(storServer, storServer.getRSAKeys());
 			stores.add(storServer);
 			
-			stgRegister = LocateRegistry.getRegistry("26.95.199.60", 5003);
+			stgRegister = LocateRegistry.getRegistry("localhost", 5003);
 			storServer = (StorageInterface) stgRegister.lookup(storageHostName[1]);
 			storServer.addNewClientKeys(myKeys);
 			storageKeys.put(storServer, storServer.getRSAKeys());
 			stores.add(storServer);
 
-			stgRegister = LocateRegistry.getRegistry("26.95.199.60", 5004);
+			stgRegister = LocateRegistry.getRegistry("localhost", 5004);
 			storServer = (StorageInterface) stgRegister.lookup(storageHostName[2]);
 			storServer.addNewClientKeys(myKeys);
 			storageKeys.put(storServer, storServer.getRSAKeys());
@@ -94,13 +98,16 @@ public class Gateway implements GatewayInterface {
 			
 			GatewayInterface protocol = (GatewayInterface) UnicastRemoteObject.exportObject(gateway, 0);
 			
-			LocateRegistry.createRegistry(5000);
-			register = LocateRegistry.getRegistry("26.95.199.60", 5000);
-			register.bind("Gateway", protocol);
+			//System.setProperty("java.rmi.server.hostname", "10.215.34.54");
+			//System.setProperty("java.security.police", "java.policy");
+			
+	
+			register = LocateRegistry.createRegistry(5000);
+			register.rebind("Gateway", protocol);
 			
 			System.out.println("Gateway ligado...");
 			
-		} catch (RemoteException | AlreadyBoundException | NotBoundException e) {
+		} catch (RemoteException | NotBoundException e) {
 			e.printStackTrace();
 		}
 		
@@ -587,11 +594,13 @@ public class Gateway implements GatewayInterface {
 	public static boolean getPermission(int destPort) {	
 		String clientHost = "";
 		
+		
 		try {
 			clientHost = RemoteServer.getClientHost();
 		} catch (ServerNotActiveException e1) {
 			e1.printStackTrace();
 		}
+		//clientHost = getIp();
 
 		System.out.println(clientHost);
 		
@@ -614,10 +623,10 @@ public class Gateway implements GatewayInterface {
 	}
 	
 	public static void setPermissions() {
-		permissions.add(new Permission("127.0.0.10", "127.0.0.1", 5001, "Autenticação", true));
-		permissions.add(new Permission("127.0.0.10", "127.0.0.2", 5002, "Loja1", true));
-		permissions.add(new Permission("127.0.0.10", "127.0.0.3", 5003, "Loja2", true));
-		permissions.add(new Permission("127.0.0.10", "127.0.0.4", 5004, "Loja3", true));
+		permissions.add(new Permission("127.0.0.1", "127.0.0.1", 5001, "Autenticação", true));
+		permissions.add(new Permission("127.0.0.1", "127.0.0.2", 5002, "Loja1", true));
+		permissions.add(new Permission("127.0.0.1", "127.0.0.3", 5003, "Loja2", true));
+		permissions.add(new Permission("127.0.0.1", "127.0.0.4", 5004, "Loja3", true));
 		
 		permissions.add(new Permission("192.168.1.105", "127.0.0.1", 5001, "Autenticação", true));
 		permissions.add(new Permission("192.168.1.105", "127.0.0.2", 5002, "Loja1", true));
@@ -657,6 +666,45 @@ public class Gateway implements GatewayInterface {
 		permissions.add(new Permission("26.15.5.193", "26.95.199.60", 5002, "Loja1", true));
 		permissions.add(new Permission("26.15.5.193", "26.95.199.60", 5003, "Loja2", true));
 		permissions.add(new Permission("26.15.5.193", "26.95.199.60", 5004, "Loja3", true));
+		
+		//vinicius client
+		permissions.add(new Permission("192.168.16.112", "127.0.0.1", 5001, "Autenticação", true));
+		permissions.add(new Permission("192.168.16.112", "127.0.0.1", 5002, "Loja1", true));
+		permissions.add(new Permission("192.168.16.112", "127.0.0.1", 5003, "Loja2", true));
+		permissions.add(new Permission("192.168.16.112", "127.0.0.1", 5004, "Loja3", true));
 	}
+	
+	private static String getIp() {
+        String ip = "127.0.0.1";
+
+        try {
+            var interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface iface = interfaces.nextElement();
+
+                if(iface.isLoopback() || !iface.isUp()) {
+                    continue;
+                }
+
+                var addresses = iface.getInetAddresses();
+                while (addresses.hasMoreElements()){
+   
+                    InetAddress addr = addresses.nextElement();
+
+                    if (addr instanceof Inet4Address) {
+						ip = addr.getHostAddress();
+						if(ip.startsWith("10.")) { // vai pegar o da ufersa
+							return ip;	
+						}
+					}
+                }
+
+            }
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
+
+        return ip;
+    }
 	
 }

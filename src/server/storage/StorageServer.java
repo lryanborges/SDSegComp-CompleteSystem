@@ -1,6 +1,10 @@
 package server.storage;
 
 import java.io.UnsupportedEncodingException;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -47,33 +51,32 @@ public class StorageServer implements StorageInterface {
 	
 	public static void main(String[] args) {
 		
-		StorageServer storServer = new StorageServer(ServerRole.FOLLOWER);
+		StorageServer storServer = new StorageServer(ServerRole.LEADER);
 		scanner = new Scanner(System.in);
 		myRSAKeys = MyKeyGenerator.generateKeysRSA();
 
 		try {
 			StorageInterface server = (StorageInterface) UnicastRemoteObject.exportObject(storServer, 0);
 			
-			LocateRegistry.createRegistry(5004);
-			Registry register = LocateRegistry.getRegistry("26.95.199.60", 5004);
-			register.bind("Storage3", server);
+			Registry register = LocateRegistry.createRegistry(5002);
+			register.rebind("Storage1", server);
 
-			gatewayPermission = new Permission("26.95.199.60", "26.95.199.60", 5004, "Loja3", true);
+			gatewayPermission = new Permission("127.0.0.1", "127.0.0.1", 5002, "Loja1", true);
 
 			scanner.nextLine();
 
-			Registry follower = LocateRegistry.getRegistry(5002);
-			followerServer1 = (StorageInterface) follower.lookup("Storage1");
+			Registry follower = LocateRegistry.getRegistry(5003);
+			followerServer1 = (StorageInterface) follower.lookup("Storage2");
 
-			follower = LocateRegistry.getRegistry(5003);
-			followerServer2 = (StorageInterface) follower.lookup("Storage2");
+			follower = LocateRegistry.getRegistry(5004);
+			followerServer2 = (StorageInterface) follower.lookup("Storage3");
 
-			Registry base = LocateRegistry.getRegistry(5012);
-			database = (DatabaseInterface) base.lookup("Database3");
+			Registry base = LocateRegistry.getRegistry(5010);
+			database = (DatabaseInterface) base.lookup("Database1");
 
-			System.out.println("Servidor de Armazenamento-3 ligado.");
+			System.out.println("Servidor de Armazenamento-1 ligado.");
 
-		} catch (RemoteException | AlreadyBoundException e) {
+		} catch (RemoteException e) {
 			e.printStackTrace();
 		} catch (NotBoundException e) {
 			e.printStackTrace();
@@ -350,11 +353,13 @@ public class StorageServer implements StorageInterface {
 		
 		String sourceIp = "";
 		
+		
 		try {
 			sourceIp = RemoteServer.getClientHost();
 		} catch (ServerNotActiveException e1) {
 			e1.printStackTrace();
 		}
+		//sourceIp = getIp();
 		
 		if(gatewayPermission.getSourceIp().equals(sourceIp) && (gatewayPermission.getDestinationPort() >= 5002 && gatewayPermission.getDestinationPort() <= 5004)) {
 			System.out.println("------------------------");
@@ -366,5 +371,34 @@ public class StorageServer implements StorageInterface {
 			return false;
 		}
 	}
+	private static String getIp() {
+        String ip = "127.0.0.1";
+
+        try {
+            var interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface iface = interfaces.nextElement();
+
+                if(iface.isLoopback() || !iface.isUp()) {
+                    continue;
+                }
+
+                var addresses = iface.getInetAddresses();
+                while (addresses.hasMoreElements()){
+                    InetAddress addr = addresses.nextElement();
+
+                    if (addr instanceof Inet4Address) {
+						ip = addr.getHostAddress();
+						return ip;
+					}
+                }
+
+            }
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
+
+        return ip;
+    }
 	
 }

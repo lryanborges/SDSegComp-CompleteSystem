@@ -46,7 +46,7 @@ public class DatabaseServer implements DatabaseInterface {
     }
 
     public static void main(String[] args) {
-        DatabaseServer dataServer = new DatabaseServer(2);
+        DatabaseServer dataServer = new DatabaseServer(0);
         
         try {
             DatabaseInterface database = (DatabaseInterface) UnicastRemoteObject.exportObject(dataServer, 0);

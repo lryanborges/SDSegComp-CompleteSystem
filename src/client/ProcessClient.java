@@ -64,8 +64,8 @@ public class ProcessClient {
 			gateway = (GatewayInterface) gatRegister.lookup("Gateway");
 			
 			// pra demonstração do firewall
-			Registry storRegister = LocateRegistry.getRegistry("26.95.199.60", 5002);
-			storServer = (StorageInterface) storRegister.lookup("Storage1");
+			//Registry storRegister = LocateRegistry.getRegistry("10.215.34.54", 5002);
+			//storServer = (StorageInterface) storRegister.lookup("Storage1");
 			
 			gateway.addNewClientKeys(clientNumber, myKeys); // manda suas chaves pro server
 			gatewayRSAKeys = gateway.getRSAKeys();	// pega as do gateway

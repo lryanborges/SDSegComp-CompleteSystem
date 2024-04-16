@@ -5,6 +5,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.rmi.AlreadyBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -17,6 +21,7 @@ import java.util.Map.Entry;
 
 import datagrams.Permission;
 import model.User;
+import server.Gateway;
 
 public class AuthenticationServer implements AuthInterface {
 
@@ -51,15 +56,14 @@ public class AuthenticationServer implements AuthInterface {
 		try {
 			AuthInterface server = (AuthInterface) UnicastRemoteObject.exportObject(authServer, 0);
 
-			LocateRegistry.createRegistry(5001);
-			Registry register = LocateRegistry.getRegistry("26.95.199.60", 5001);
-			register.bind("Authentication", server);
+			Registry register = LocateRegistry.createRegistry(5001);
+			register.rebind("Authentication", server);
 
-			gatewayPermission = new Permission("26.95.199.60", "26.95.199.60", 5001, "Autenticação", true);
+			gatewayPermission = new Permission("127.0.0.1", "127.0.0.1", 5001, "Autenticação", true);
 			
 			System.out.println("Servidor de Autenticação ligado.");
 
-		} catch (RemoteException | AlreadyBoundException e) {
+		} catch (RemoteException e) {
 			e.printStackTrace();
 		}
 
@@ -131,12 +135,15 @@ public class AuthenticationServer implements AuthInterface {
 		
 		String sourceIp = "";
 		
+		
 		try {
 			sourceIp = RemoteServer.getClientHost();
 		} catch (ServerNotActiveException e1) {
 			e1.printStackTrace();
 		}
+		sourceIp = getIp();
 		
+		// se for o permitido ou eu mesmo (rede local eh 127.0.0.1)
 		if(gatewayPermission.getSourceIp().equals(sourceIp) && gatewayPermission.getDestinationPort() == 5001) {
 			System.out.println("------------------------");
 			System.out.println("Firewall --> Pacote permitido. Acesso: " + gatewayPermission.getName() + ", source: " + gatewayPermission.getSourceIp());
@@ -147,5 +154,37 @@ public class AuthenticationServer implements AuthInterface {
 			return false;
 		}
 	}
+	
+	private static String getIp() {
+        String ip = "127.0.0.1";
+
+        try {
+            var interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface iface = interfaces.nextElement();
+
+                if(iface.isLoopback() || !iface.isUp()) {
+                    continue;
+                }
+
+                var addresses = iface.getInetAddresses();
+                while (addresses.hasMoreElements()){
+                    InetAddress addr = addresses.nextElement();
+
+                    if (addr instanceof Inet4Address) {
+						ip = addr.getHostAddress();
+						if(ip.startsWith("10.")) { // vai pegar o da ufersa
+							return ip;	
+						}
+					}
+                }
+
+            }
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
+
+        return ip;
+    }
 	
 }
