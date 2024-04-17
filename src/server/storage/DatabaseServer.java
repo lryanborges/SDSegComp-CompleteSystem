@@ -36,6 +36,8 @@ public class DatabaseServer implements DatabaseInterface {
     private static int myPath;
     
     private static Permission storagePermission;
+    
+    private static String ipLoja = "192.168.218.218";
 
     public DatabaseServer(int rep) {
         myPath = rep;	
@@ -53,7 +55,7 @@ public class DatabaseServer implements DatabaseInterface {
     public static void main(String[] args) {
         DatabaseServer dataServer = new DatabaseServer(2);
         
-        storagePermission = new Permission("192.168.8.218", "127.0.0.1", 5010 + myPath, "Loja de carros", true);
+        storagePermission = new Permission(ipLoja, "127.0.0.1", 5010 + myPath, "Loja de carros", true);
         
         try {
             DatabaseInterface database = (DatabaseInterface) UnicastRemoteObject.exportObject(dataServer, 0);
@@ -61,6 +63,8 @@ public class DatabaseServer implements DatabaseInterface {
             Registry register = LocateRegistry.getRegistry("localhost",5010+myPath);
             int databaseRep = myPath+1;
             register.bind("Database"+databaseRep, database);
+            
+            System.out.println("DATABASE " + databaseRep);
         }
         catch(Exception e) {
             e.printStackTrace();
@@ -232,7 +236,7 @@ public class DatabaseServer implements DatabaseInterface {
     public int getAmount(int category) throws RemoteException {
     	if(DatabaseServer.getPermission()) {
             cars = getFileCars();
-    		
+    		//attServer();
     		
     		switch(category) {
     		case 1:

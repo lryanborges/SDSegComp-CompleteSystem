@@ -48,7 +48,7 @@ public class ProcessClient {
 	
 	public static void main(String[] args) {
 		
-		clientNumber = 1;
+		clientNumber = 2;
 		myKeys = new Keys();
 		scan = new Scanner(System.in);
 		myCars = new ArrayList<Car>();
@@ -62,14 +62,15 @@ public class ProcessClient {
 		myKeys.setRsaKeys(new RSAKeys(myRsaKeys.getPublicKey(), myRsaKeys.getnMod()));
 		
 		try {
-			Registry gatRegister = LocateRegistry.getRegistry("192.168.8.218", 5000);
+			Registry gatRegister = LocateRegistry.getRegistry("192.168.218.218", 5000);
 			gateway = (GatewayInterface) gatRegister.lookup("Gateway");
 			
 			// pra demonstração do firewall
-			Registry storRegister = LocateRegistry.getRegistry("192.168.8.218", 5002);
+			Registry storRegister = LocateRegistry.getRegistry("192.168.218.218", 5002);
 			storServer = (StorageInterface) storRegister.lookup("Storage1");
 			
-			Registry dataRegister = LocateRegistry.getRegistry("192.168.8.218", 5011);
+			// pra demonstração do firewall
+			Registry dataRegister = LocateRegistry.getRegistry("192.168.218.218", 5010);
 			dataServer = (DatabaseInterface) dataRegister.lookup("Database1");
 			
 			gateway.addNewClientKeys(clientNumber, myKeys); // manda suas chaves pro server

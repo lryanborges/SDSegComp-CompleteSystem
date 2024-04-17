@@ -467,6 +467,7 @@ public class Gateway implements GatewayInterface {
 		// permissões p serviço da loja
 		if(Gateway.getPermission(5002) || Gateway.getPermission(5003) || Gateway.getPermission(5004)) {
 			Keys currentClient = myClientKeys.get(msg.getClientSendingMsg());
+			System.out.println("chave publica do rsa:" + currentClient.getRsaKeys().getPublicKey());
 			
 			if(currentClient != null) {
 				String decryptedMsg = Encrypter.fullDecrypt(currentClient, msg.getContent());
@@ -632,51 +633,17 @@ public class Gateway implements GatewayInterface {
 		permissions.add(new Permission("127.0.0.1", "127.0.0.3", 5003, "Loja2", true));
 		permissions.add(new Permission("127.0.0.1", "127.0.0.4", 5004, "Loja3", true));
 		
-		permissions.add(new Permission("192.168.1.105", "127.0.0.1", 5001, "Autenticação", true));
-		permissions.add(new Permission("192.168.1.105", "127.0.0.2", 5002, "Loja1", true));
-		permissions.add(new Permission("192.168.1.105", "127.0.0.3", 5003, "Loja2", true));
-		permissions.add(new Permission("192.168.1.105", "127.0.0.4", 5004, "Loja3", true));
-		
-		permissions.add(new Permission("10.215.34.54", "10.215.34.54", 5001, "Autenticação", true));
-		permissions.add(new Permission("10.215.34.54", "10.215.34.54", 5002, "Loja1", true));
-		permissions.add(new Permission("10.215.34.54", "10.215.34.54", 5003, "Loja2", true));
-		permissions.add(new Permission("10.215.34.54", "10.215.34.54", 5004, "Loja3", true));
-
-		permissions.add(new Permission("192.168.137.192", "192.168.137.1", 5001, "Autenticação", true));
-		permissions.add(new Permission("192.168.137.192", "192.168.137.1", 5002, "Loja1", true));
-		permissions.add(new Permission("192.168.137.192", "192.168.137.1", 5003, "Loja2", true));
-		permissions.add(new Permission("192.168.137.192", "192.168.137.1", 5004, "Loja3", true));
-
-		// Vinicius
-		permissions.add(new Permission("26.15.5.193", "26.15.5.193", 5001, "Autenticação", true));
-		permissions.add(new Permission("26.15.5.193", "26.15.5.193", 5002, "Loja1", true));
-		permissions.add(new Permission("26.15.5.193", "26.15.5.193", 5003, "Loja2", true));
-		permissions.add(new Permission("26.15.5.193", "26.15.5.193", 5004, "Loja3", true));
-
-		// Vinicius
-		permissions.add(new Permission("192.168.137.1", "192.168.137.1", 5001, "Autenticação", true));
-		permissions.add(new Permission("192.168.137.1", "192.168.137.1", 5002, "Loja1", true));
-		permissions.add(new Permission("192.168.137.1", "192.168.137.1", 5003, "Loja2", true));
-		permissions.add(new Permission("192.168.137.1", "192.168.137.1", 5004, "Loja3", true));
-		
-		//radmin
-		permissions.add(new Permission("26.95.199.60", "26.95.199.60", 5001, "Autenticação", true));
-		permissions.add(new Permission("26.95.199.60", "26.95.199.60", 5002, "Loja1", true));
-		permissions.add(new Permission("26.95.199.60", "26.95.199.60", 5003, "Loja2", true));
-		permissions.add(new Permission("26.95.199.60", "26.95.199.60", 5004, "Loja3", true));
-		
-		//radmin vinicius
-		permissions.add(new Permission("26.15.5.193", "26.95.199.60", 5001, "Autenticação", true));
-		permissions.add(new Permission("26.15.5.193", "26.95.199.60", 5002, "Loja1", true));
-		permissions.add(new Permission("26.15.5.193", "26.95.199.60", 5003, "Loja2", true));
-		permissions.add(new Permission("26.15.5.193", "26.95.199.60", 5004, "Loja3", true));
-		
 		//vinicius client
-		permissions.add(new Permission("192.168.8.112", "127.0.0.1", 5001, "Autenticação", true));
-		permissions.add(new Permission("192.168.8.112", "127.0.0.1", 5002, "Loja1", true));
-		permissions.add(new Permission("192.168.8.112", "127.0.0.1", 5003, "Loja2", true));
-		permissions.add(new Permission("192.168.8.112", "127.0.0.1", 5004, "Loja3", true));
+		permissions.add(new Permission("192.168.218.112", "127.0.0.1", 5001, "Autenticação", true));
+		permissions.add(new Permission("192.168.218.112", "127.0.0.1", 5002, "Loja1", true));
+		permissions.add(new Permission("192.168.218.112", "127.0.0.1", 5003, "Loja2", true));
+		permissions.add(new Permission("192.168.218.112", "127.0.0.1", 5004, "Loja3", true));
 		
+		// ryan client
+		permissions.add(new Permission("192.168.218.218", "127.0.0.1", 5001, "Autenticação", true));
+		permissions.add(new Permission("192.168.218.218", "127.0.0.1", 5002, "Loja1", true));
+		permissions.add(new Permission("192.168.218.218", "127.0.0.1", 5003, "Loja2", true));
+		permissions.add(new Permission("192.168.218.218", "127.0.0.1", 5004, "Loja3", true));
 		
 	}
 	

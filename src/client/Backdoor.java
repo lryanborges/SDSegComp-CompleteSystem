@@ -13,6 +13,7 @@ import server.GatewayInterface;
 import server.authentication.AuthInterface;
 import server.storage.StorageInterface;
 
+// invasor
 public class Backdoor {
 
 	private static GatewayInterface gateway;
@@ -27,13 +28,13 @@ public class Backdoor {
 		stealedCars = new ArrayList<Car>();
 		
 		try {
-			Registry gatRegister = LocateRegistry.getRegistry("127.0.0.10", 5000);
+			Registry gatRegister = LocateRegistry.getRegistry("192.168.218.218", 5000);
 			gateway = (GatewayInterface) gatRegister.lookup("Gateway");
 			
-			Registry authRegister = LocateRegistry.getRegistry("127.0.0.1", 5001);
+			Registry authRegister = LocateRegistry.getRegistry("192.168.218.218", 5001);
 			authServer = (AuthInterface) authRegister.lookup("Authentication");
 			
-			Registry storRegister = LocateRegistry.getRegistry("127.0.0.2", 5002);
+			Registry storRegister = LocateRegistry.getRegistry("192.168.218.218", 5002);
 			storServer = (StorageInterface) storRegister.lookup("Storage1");
 			
 			stealCars();

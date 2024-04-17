@@ -35,6 +35,8 @@ public class AuthenticationServer implements AuthInterface {
 
 	private static Permission gatewayPermission;
 	
+	private static String ipGateway = "192.168.218.218";
+	
 	public AuthenticationServer() {
 		try { // tenta abrir
 			fileInput = new ObjectInputStream(new FileInputStream(path));
@@ -62,7 +64,7 @@ public class AuthenticationServer implements AuthInterface {
 			Registry register = LocateRegistry.createRegistry(5001);
 			register.rebind("Authentication", server);
 
-			gatewayPermission = new Permission("192.168.8.218", "127.0.0.1", 5001, "Autenticação", true);
+			gatewayPermission = new Permission(ipGateway, "127.0.0.1", 5001, "Autenticação", true);
 			
 			System.out.println("Servidor de Autenticação ligado.");
 

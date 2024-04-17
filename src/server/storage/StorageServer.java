@@ -45,13 +45,15 @@ public class StorageServer implements StorageInterface {
 	
 	private static Permission gatewayPermission;
 	
+	private static String ipGateway = "192.168.218.218";
+	
 	public StorageServer(ServerRole r) {
 		role = r;
 	}
 	
 	public static void main(String[] args) {
 		
-		StorageServer storServer = new StorageServer(ServerRole.FOLLOWER);
+		StorageServer storServer = new StorageServer(ServerRole.LEADER);
 		scanner = new Scanner(System.in);
 		myRSAKeys = MyKeyGenerator.generateKeysRSA();
 
@@ -61,7 +63,7 @@ public class StorageServer implements StorageInterface {
 			Registry register = LocateRegistry.createRegistry(5002);
 			register.rebind("Storage1", server);
 
-			gatewayPermission = new Permission("192.168.8.218", "127.0.0.1", 5002, "Loja1", true);
+			gatewayPermission = new Permission(ipGateway, "127.0.0.1", 5002, "Loja1", true);
 
 			scanner.nextLine();
 
@@ -75,7 +77,7 @@ public class StorageServer implements StorageInterface {
 			database = (DatabaseInterface) base.lookup("Database1");
 
 			System.out.println("Servidor de Armazenamento-1 ligado.");
-
+			
 		} catch (RemoteException e) {
 			e.printStackTrace();
 		} catch (NotBoundException e) {
@@ -126,6 +128,7 @@ public class StorageServer implements StorageInterface {
 	public List<Car> listCars() throws RemoteException {
 		if(StorageServer.getPermission()) {
 			System.out.println("Lista de carros enviada.");
+			List<Car> cars = database.listCars();
 			return database.listCars();	
 		}
 		
@@ -165,6 +168,7 @@ public class StorageServer implements StorageInterface {
 	public Car buyCar(String renavam) throws RemoteException {
 		
 		if(role == ServerRole.LEADER && StorageServer.getPermission()) {
+			System.out.println("ENTREI");
 			Car car = database.buyCar(renavam);
 			database.attServer();
 			System.out.println("Carro de renavam " + renavam + " foi comprado.");
