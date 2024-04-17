@@ -8,6 +8,7 @@ public abstract class User implements Serializable {
 	protected String cpf;
 	protected boolean isEmployee;
 	protected String password;
+	protected byte[] salt;
 	
 	public void list() {}
 	
@@ -61,6 +62,26 @@ public abstract class User implements Serializable {
 
 	public void setPassword(String password) {
 		this.password = password;
+	}
+
+	public boolean isIsEmployee() {
+		return this.isEmployee;
+	}
+
+	public boolean getIsEmployee() {
+		return this.isEmployee;
+	}
+
+	public void setIsEmployee(boolean isEmployee) {
+		this.isEmployee = isEmployee;
+	}
+
+	public byte[] getSalt() {
+		return this.salt;
+	}
+
+	public void setSalt(byte[] salt) {
+		this.salt = salt;
 	}
 	
 }

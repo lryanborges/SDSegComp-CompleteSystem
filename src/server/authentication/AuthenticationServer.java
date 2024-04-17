@@ -16,9 +16,12 @@ import java.rmi.registry.Registry;
 import java.rmi.server.RemoteServer;
 import java.rmi.server.ServerNotActiveException;
 import java.rmi.server.UnicastRemoteObject;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
+import crypto.PasswordEncoder;
 import datagrams.Permission;
 import model.User;
 import server.Gateway;
@@ -88,6 +91,15 @@ public class AuthenticationServer implements AuthInterface {
 	public void registerUser(User newUser) {
 		if(AuthenticationServer.getPermission()) {
 			users = getFileUsers(); // pega do arquivo e bota no mapa
+			
+			try {
+				byte[] salt = PasswordEncoder.getSalt();
+				newUser.setPassword(PasswordEncoder.getHash(newUser.getPassword(), salt)); // Criptografa a senha do usuário para salvar no mapa
+				newUser.setSalt(salt); // salva o salt junto do usuário
+			} catch (NoSuchAlgorithmException e) {
+				e.printStackTrace();
+			}
+
 			users.put(newUser.getCpf(), newUser); // add no mapa
 			attServer(); // salva o mapa num arquivo
 			
@@ -99,10 +111,16 @@ public class AuthenticationServer implements AuthInterface {
 	public User loginUser(String cpf, String password) {
 		if(AuthenticationServer.getPermission()) {
 			for (Entry<String, User> user : users.entrySet()) {
-				if (cpf.equals(user.getKey()) && password.equals(user.getValue().getPassword())) {
-					System.out.println("Logado com sucesso! Bem-vindo, " + user.getValue().getName() + ".");
+				if (cpf.equals(user.getKey())) {
+					byte[] salt = user.getValue().getSalt(); // define o salt deste usuário
 
-					return user.getValue();
+					password = PasswordEncoder.getHash(password, salt); // gera o hash da senha inserida com o salt já existente
+					
+					// Verifica se os hashs são iguais
+					if(password.equals(user.getValue().getPassword())) {
+						System.out.println("Logado com sucesso! Bem-vindo, " + user.getValue().getName() + ".");
+						return user.getValue();
+					}
 				}
 			}	
 		}
