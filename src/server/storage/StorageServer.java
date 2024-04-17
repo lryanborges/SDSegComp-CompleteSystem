@@ -51,7 +51,7 @@ public class StorageServer implements StorageInterface {
 	
 	public static void main(String[] args) {
 		
-		StorageServer storServer = new StorageServer(ServerRole.LEADER);
+		StorageServer storServer = new StorageServer(ServerRole.FOLLOWER);
 		scanner = new Scanner(System.in);
 		myRSAKeys = MyKeyGenerator.generateKeysRSA();
 
@@ -61,7 +61,7 @@ public class StorageServer implements StorageInterface {
 			Registry register = LocateRegistry.createRegistry(5002);
 			register.rebind("Storage1", server);
 
-			gatewayPermission = new Permission("127.0.0.1", "127.0.0.1", 5002, "Loja1", true);
+			gatewayPermission = new Permission("192.168.8.218", "127.0.0.1", 5002, "Loja1", true);
 
 			scanner.nextLine();
 
@@ -86,7 +86,7 @@ public class StorageServer implements StorageInterface {
 
 	@Override
 	public void addCar(Car newCar) throws RemoteException {
-		if(role == ServerRole.LEADER) {
+		if(role == ServerRole.LEADER && StorageServer.getPermission()) {
 			database.addCar(newCar);
 			database.attServer();
 			System.out.println("Carro adicionado com sucesso.");
@@ -96,7 +96,7 @@ public class StorageServer implements StorageInterface {
 	@Override
 	public void editCar(String renavam, Car editedCar) throws RemoteException {
 		
-		if(role == ServerRole.LEADER) {
+		if(role == ServerRole.LEADER && StorageServer.getPermission()) {
 			database.editCar(renavam, editedCar);
 			database.attServer();
 			System.out.println("Carro de renavam " + renavam + " editado com sucesso.");
@@ -106,7 +106,7 @@ public class StorageServer implements StorageInterface {
 
 	@Override
 	public void deleteCar(String renavam) throws RemoteException {
-		if(role == ServerRole.LEADER) {
+		if(role == ServerRole.LEADER && StorageServer.getPermission()) {
 			database.deleteCar(renavam);
 			database.attServer();
 			System.out.println("Carro de renavam " + renavam + " deletado com sucesso.");
@@ -115,7 +115,7 @@ public class StorageServer implements StorageInterface {
 	
 	@Override
 	public void deleteCars(String name) throws RemoteException {
-		if(role == ServerRole.LEADER) {
+		if(role == ServerRole.LEADER && StorageServer.getPermission()) {
 			database.deleteCars(name);
 			database.attServer();
 			System.out.println("Todos os carros " + name + " deletados com sucesso.");
@@ -124,32 +124,47 @@ public class StorageServer implements StorageInterface {
 
 	@Override
 	public List<Car> listCars() throws RemoteException {
-		System.out.println("Lista de carros enviada.");
-		return database.listCars();
+		if(StorageServer.getPermission()) {
+			System.out.println("Lista de carros enviada.");
+			return database.listCars();	
+		}
+		
+		return null;
 	}
 	
 	@Override
 	public List<Car> listCars(int category) throws RemoteException {
-		System.out.println("Lista de carros da categoria " + category + " enviada.");
-		return database.listCars(category);
+		if(StorageServer.getPermission()) {
+			System.out.println("Lista de carros da categoria " + category + " enviada.");
+			return database.listCars(category);	
+		}
+		
+		return null;
 	}
 
 	@Override
 	public Car searchCar(String renavam) throws RemoteException {
-		Car car = database.searchCar(renavam);
-		return car;
+		if(StorageServer.getPermission()) {
+			Car car = database.searchCar(renavam);
+			return car;	
+		}
+		return null;
 	}
 
 	@Override
 	public List<Car> searchCars(String name) throws RemoteException {
-		List<Car> list = searchCars(name);
-		return list;
+		if(StorageServer.getPermission()) {
+			List<Car> list = searchCars(name);
+			return list;	
+		}
+		
+		return null;
 	}
 
 	@Override
 	public Car buyCar(String renavam) throws RemoteException {
 		
-		if(role == ServerRole.LEADER) {
+		if(role == ServerRole.LEADER && StorageServer.getPermission()) {
 			Car car = database.buyCar(renavam);
 			database.attServer();
 			System.out.println("Carro de renavam " + renavam + " foi comprado.");
@@ -161,8 +176,11 @@ public class StorageServer implements StorageInterface {
 
 	@Override
 	public int getAmount(int category) throws RemoteException {
-		int amount = database.getAmount(category);
-		return amount;
+		if(StorageServer.getPermission()) {
+			int amount = database.getAmount(category);
+			return amount;	
+		}
+		return -1;
 	}
 
 	@Override
@@ -367,7 +385,7 @@ public class StorageServer implements StorageInterface {
 			return true;
 		} else {
 			System.out.println("------------------------");
-			System.out.println("Firewall --> Pacote negado. Acesso: " + gatewayPermission.getName() + ", source: " + gatewayPermission.getSourceIp());
+			System.out.println("Firewall --> Pacote negado. Acesso: " + gatewayPermission.getName() + ", source: " + sourceIp);
 			return false;
 		}
 	}

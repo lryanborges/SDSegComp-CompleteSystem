@@ -25,6 +25,7 @@ import model.Keys;
 import model.RSAKeys;
 import model.User;
 import server.GatewayInterface;
+import server.storage.DatabaseInterface;
 import server.storage.StorageInterface;
 
 public class ProcessClient {
@@ -41,6 +42,7 @@ public class ProcessClient {
 	
 	// pra demonstração do firewall
 	private static StorageInterface storServer;
+	private static DatabaseInterface dataServer;
 	
 	private static int passwordTries = 3;
 	
@@ -60,12 +62,15 @@ public class ProcessClient {
 		myKeys.setRsaKeys(new RSAKeys(myRsaKeys.getPublicKey(), myRsaKeys.getnMod()));
 		
 		try {
-			Registry gatRegister = LocateRegistry.getRegistry("26.95.199.60", 5000);
+			Registry gatRegister = LocateRegistry.getRegistry("192.168.8.218", 5000);
 			gateway = (GatewayInterface) gatRegister.lookup("Gateway");
 			
 			// pra demonstração do firewall
-			//Registry storRegister = LocateRegistry.getRegistry("10.215.34.54", 5002);
-			//storServer = (StorageInterface) storRegister.lookup("Storage1");
+			Registry storRegister = LocateRegistry.getRegistry("192.168.8.218", 5002);
+			storServer = (StorageInterface) storRegister.lookup("Storage1");
+			
+			Registry dataRegister = LocateRegistry.getRegistry("192.168.8.218", 5011);
+			dataServer = (DatabaseInterface) dataRegister.lookup("Database1");
 			
 			gateway.addNewClientKeys(clientNumber, myKeys); // manda suas chaves pro server
 			gatewayRSAKeys = gateway.getRSAKeys();	// pega as do gateway
@@ -385,6 +390,9 @@ public class ProcessClient {
 				case 5454:
 					tryAcessStorage();
 					break;
+				case 5555:
+					tryAcessDatabase();
+					break;
 				default:
 					System.out.println("Opção inválida.");
 				
@@ -675,6 +683,14 @@ public class ProcessClient {
 	
 	private static void tryAcessStorage() throws RemoteException {
 		List<Car> cars = storServer.listCars();
+		if(cars == null) {
+			System.out.println("------------------");
+			System.out.println("Você não possui permissão de acesso.");
+		}
+	}
+	
+	private static void tryAcessDatabase() throws RemoteException {
+		List<Car> cars = dataServer.listCars();
 		if(cars == null) {
 			System.out.println("------------------");
 			System.out.println("Você não possui permissão de acesso.");

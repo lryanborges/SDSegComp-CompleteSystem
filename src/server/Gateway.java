@@ -602,7 +602,7 @@ public class Gateway implements GatewayInterface {
 		}
 		//clientHost = getIp();
 
-		System.out.println(clientHost);
+		//System.out.println(clientHost);
 		
 		for(Permission perm : permissions) {
 			if(perm.getSourceIp().equals(clientHost) && perm.getDestinationPort() == destPort) {
@@ -618,6 +618,10 @@ public class Gateway implements GatewayInterface {
 				return true;
 			}
 		}
+		
+		
+		System.out.println("------------------------");
+		System.out.println("Firewall --> Pacote negado. Source: " + clientHost);
 		
 		return false; // negou acesso
 	}
@@ -668,10 +672,12 @@ public class Gateway implements GatewayInterface {
 		permissions.add(new Permission("26.15.5.193", "26.95.199.60", 5004, "Loja3", true));
 		
 		//vinicius client
-		permissions.add(new Permission("192.168.16.112", "127.0.0.1", 5001, "Autenticação", true));
-		permissions.add(new Permission("192.168.16.112", "127.0.0.1", 5002, "Loja1", true));
-		permissions.add(new Permission("192.168.16.112", "127.0.0.1", 5003, "Loja2", true));
-		permissions.add(new Permission("192.168.16.112", "127.0.0.1", 5004, "Loja3", true));
+		permissions.add(new Permission("192.168.8.112", "127.0.0.1", 5001, "Autenticação", true));
+		permissions.add(new Permission("192.168.8.112", "127.0.0.1", 5002, "Loja1", true));
+		permissions.add(new Permission("192.168.8.112", "127.0.0.1", 5003, "Loja2", true));
+		permissions.add(new Permission("192.168.8.112", "127.0.0.1", 5004, "Loja3", true));
+		
+		
 	}
 	
 	private static String getIp() {

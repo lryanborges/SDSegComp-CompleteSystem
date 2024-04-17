@@ -9,6 +9,8 @@ import java.io.ObjectOutputStream;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.RemoteServer;
+import java.rmi.server.ServerNotActiveException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
 
+import datagrams.Permission;
 import model.Car;
 import model.EconomicCar;
 import model.ExecutiveCar;
@@ -31,6 +34,8 @@ public class DatabaseServer implements DatabaseInterface {
     private static int currentDatabase = 0;
 	private static int economicAmount = 0, intermediaryAmount = 0, executiveAmount = 0;
     private static int myPath;
+    
+    private static Permission storagePermission;
 
     public DatabaseServer(int rep) {
         myPath = rep;	
@@ -46,7 +51,9 @@ public class DatabaseServer implements DatabaseInterface {
     }
 
     public static void main(String[] args) {
-        DatabaseServer dataServer = new DatabaseServer(0);
+        DatabaseServer dataServer = new DatabaseServer(2);
+        
+        storagePermission = new Permission("192.168.8.218", "127.0.0.1", 5010 + myPath, "Loja de carros", true);
         
         try {
             DatabaseInterface database = (DatabaseInterface) UnicastRemoteObject.exportObject(dataServer, 0);
@@ -62,161 +69,189 @@ public class DatabaseServer implements DatabaseInterface {
 
     @Override
     synchronized public void addCar(Car newCar) throws RemoteException {
-        cars = getFileCars(); // pega do arquivo e bota no mapa
-        cars.put(newCar.getRenavam(), newCar); // add no mapa
+    	if(DatabaseServer.getPermission()) {
+    		cars = getFileCars(); // pega do arquivo e bota no mapa
+    		cars.put(newCar.getRenavam(), newCar); // add no mapa
+    	}
     }
 
     @Override
     synchronized public void editCar(String renavam, Car editedCar) throws RemoteException {
-        cars = getFileCars(); // att o mapa pra versao mais recente
-		Car editCar = searchCar(renavam);
+    	if(DatabaseServer.getPermission()) {
+    		cars = getFileCars(); // att o mapa pra versao mais recente
+    		Car editCar = searchCar(renavam);
 
-        if(!editedCar.getName().equals(null) && !editedCar.getName().equals("null")) {
-            editCar.setName(editedCar.getName());
-        }
-        if(editedCar.getCategory() != 0) {
-            switch(editCar.getCategory()) {
-            case 1:
-                economicAmount--;
-                break;
-            case 2:
-                intermediaryAmount--;
-                break;
-            case 3:
-                executiveAmount--;
-                break;
+            if(!editedCar.getName().equals(null) && !editedCar.getName().equals("null")) {
+                editCar.setName(editedCar.getName());
             }
-            switch(editedCar.getCategory()) {
-            case 1:
-                economicAmount++;
-                break;
-            case 2:
-                intermediaryAmount++;
-                break;
-            case 3:
-                executiveAmount++;
-                break;
+            if(editedCar.getCategory() != 0) {
+                switch(editCar.getCategory()) {
+                case 1:
+                    economicAmount--;
+                    break;
+                case 2:
+                    intermediaryAmount--;
+                    break;
+                case 3:
+                    executiveAmount--;
+                    break;
+                }
+                switch(editedCar.getCategory()) {
+                case 1:
+                    economicAmount++;
+                    break;
+                case 2:
+                    intermediaryAmount++;
+                    break;
+                case 3:
+                    executiveAmount++;
+                    break;
+                }
+                editCar.setCategory(editedCar.getCategory());
             }
-            editCar.setCategory(editedCar.getCategory());
-        }
-        if(!editedCar.getManufactureYear().equals(null) && !editedCar.getManufactureYear().equals("null")) {
-            editCar.setManufactureYear(editedCar.getManufactureYear());
-        }
-        if(editedCar.getPrice() != 0.0) {
-            editCar.setPrice(editedCar.getPrice());
-        }
+            if(!editedCar.getManufactureYear().equals(null) && !editedCar.getManufactureYear().equals("null")) {
+                editCar.setManufactureYear(editedCar.getManufactureYear());
+            }
+            if(editedCar.getPrice() != 0.0) {
+                editCar.setPrice(editedCar.getPrice());
+            }
+    	}
     }
 
     @Override
     synchronized public void deleteCar(String renavam) throws RemoteException {
-        cars = getFileCars(); // att o mapa pra versao mais recente
-		Car deleteCar = searchCar(renavam);
+       if(DatabaseServer.getPermission()) {
+    	   	cars = getFileCars(); // att o mapa pra versao mais recente
+   			Car deleteCar = searchCar(renavam);
 
-        if(deleteCar != null) {
-			cars.remove(renavam, deleteCar);
-        }
+   			if(deleteCar != null) {
+   				cars.remove(renavam, deleteCar);
+   			}
+       }
     }
 
     @Override
     synchronized public void deleteCars(String name) throws RemoteException {
-        cars = getFileCars(); // att o mapa pra versao mais recente
-		List<Car> deleteCars = searchCars(name);
+    	if(DatabaseServer.getPermission()) {
+            cars = getFileCars(); // att o mapa pra versao mais recente
+    		List<Car> deleteCars = searchCars(name);
 
-        if(deleteCars != null) {
-            for(Car toDeleteCar : deleteCars) {
-                cars.remove(toDeleteCar.getRenavam(), toDeleteCar);
-            }
-            
-        }
+            if(deleteCars != null) {
+                for(Car toDeleteCar : deleteCars) {
+                    cars.remove(toDeleteCar.getRenavam(), toDeleteCar);
+                }
+                
+            }	
+    	}
     }
 
     @Override
     public List<Car> listCars() throws RemoteException {
-        cars = getFileCars(); // att o mapa pra versao mais recente
-		List<Car> list = new ArrayList<Car>();
-		
-		for (Entry<String, Car> car : cars.entrySet()) {
-			list.add(car.getValue());
-		}
-        // processo de ordenar por nome
-		Comparator<Car> comparator = Comparator.comparing(Car::getName);
-		Collections.sort(list, comparator);
-        return list;
+    	if(DatabaseServer.getPermission()) {
+            cars = getFileCars(); // att o mapa pra versao mais recente
+    		List<Car> list = new ArrayList<Car>();
+    		
+    		for (Entry<String, Car> car : cars.entrySet()) {
+    			list.add(car.getValue());
+    		}
+            // processo de ordenar por nome
+    		Comparator<Car> comparator = Comparator.comparing(Car::getName);
+    		Collections.sort(list, comparator);
+            return list;
+    	}
+    	
+    	return null;
     }
 
     @Override
     public List<Car> listCars(int category) throws RemoteException {
-        cars = getFileCars(); // att o mapa pra versao mais recente
-		List<Car> list = new ArrayList<Car>();
-		
-		for (Entry<String, Car> car : cars.entrySet()) {
-			if(car.getValue().getCategory() == category) {
-				list.add(car.getValue());	
-			}
-		}
-		
-		// processo de ordenar por nome
-		Comparator<Car> comparator = Comparator.comparing(Car::getName);
-		Collections.sort(list, comparator);
-        return list;
+    	if(DatabaseServer.getPermission()) {
+            cars = getFileCars(); // att o mapa pra versao mais recente
+    		List<Car> list = new ArrayList<Car>();
+    		
+    		for (Entry<String, Car> car : cars.entrySet()) {
+    			if(car.getValue().getCategory() == category) {
+    				list.add(car.getValue());	
+    			}
+    		}
+    		
+    		// processo de ordenar por nome
+    		Comparator<Car> comparator = Comparator.comparing(Car::getName);
+    		Collections.sort(list, comparator);
+            return list;	
+    	}
+    	
+    	return null;
     }
 
     @Override
     public Car searchCar(String renavam) throws RemoteException {
-        cars = getFileCars(); // att o mapa pra versao mais recente
-		
-		Car finded = null;
-		for (Entry<String, Car> car : cars.entrySet()) {
-			if (renavam.equals(car.getKey()) && renavam.equals(car.getValue().getRenavam())) {
-				finded = car.getValue();
-				break;
-			}
-		}
-        return finded;
+    	if(DatabaseServer.getPermission()) {
+            cars = getFileCars(); // att o mapa pra versao mais recente
+    		
+    		Car finded = null;
+    		for (Entry<String, Car> car : cars.entrySet()) {
+    			if (renavam.equals(car.getKey()) && renavam.equals(car.getValue().getRenavam())) {
+    				finded = car.getValue();
+    				break;
+    			}
+    		}
+            return finded;
+    	}
+    	return null;
     }
 
     @Override
     public List<Car> searchCars(String name) throws RemoteException {
-        cars = getFileCars(); // att o mapa pra versao mais recente
-		
-		List<Car> findeds = new ArrayList<Car>();
-		for (Entry<String, Car> car : cars.entrySet()) {
-			if (name.equalsIgnoreCase(car.getValue().getName())) {
-				System.out.println("Renavam: " + car.getValue().getRenavam() + ".");
-				findeds.add(car.getValue());
-			}
-		}
-        return findeds;
+    	if(DatabaseServer.getPermission()) {
+            cars = getFileCars(); // att o mapa pra versao mais recente
+    		
+    		List<Car> findeds = new ArrayList<Car>();
+    		for (Entry<String, Car> car : cars.entrySet()) {
+    			if (name.equalsIgnoreCase(car.getValue().getName())) {
+    				System.out.println("Renavam: " + car.getValue().getRenavam() + ".");
+    				findeds.add(car.getValue());
+    			}
+    		}
+            return findeds;	
+    	}
+    	return null;
     }
 
     @Override
     synchronized public Car buyCar(String renavam) throws RemoteException {
-        Car purchased = searchCar(renavam);
-        deleteCar(renavam);
-        return purchased;
+    	if(DatabaseServer.getPermission()) {
+            Car purchased = searchCar(renavam);
+            deleteCar(renavam);
+            return purchased;	
+    	}
+    	return null;
     }
 
     @Override
     public int getAmount(int category) throws RemoteException {
-        cars = getFileCars();
-		
-		
-		switch(category) {
-		case 1:
-			EconomicCar.setAmount(economicAmount);
-			return economicAmount;
-		case 2:
-			IntermediaryCar.setAmount(intermediaryAmount);
-			return intermediaryAmount;
-		case 3:
-			ExecutiveCar.setAmount(executiveAmount);
-			return executiveAmount;
-		default:
-			EconomicCar.setAmount(economicAmount);
-			IntermediaryCar.setAmount(intermediaryAmount);
-			ExecutiveCar.setAmount(executiveAmount);
-			return economicAmount + intermediaryAmount + executiveAmount;	
-		}
+    	if(DatabaseServer.getPermission()) {
+            cars = getFileCars();
+    		
+    		
+    		switch(category) {
+    		case 1:
+    			EconomicCar.setAmount(economicAmount);
+    			return economicAmount;
+    		case 2:
+    			IntermediaryCar.setAmount(intermediaryAmount);
+    			return intermediaryAmount;
+    		case 3:
+    			ExecutiveCar.setAmount(executiveAmount);
+    			return executiveAmount;
+    		default:
+    			EconomicCar.setAmount(economicAmount);
+    			IntermediaryCar.setAmount(intermediaryAmount);
+    			ExecutiveCar.setAmount(executiveAmount);
+    			return economicAmount + intermediaryAmount + executiveAmount;	
+    		}	
+    	}
+    	return -1;
     }
 
     @Override
@@ -284,6 +319,30 @@ public class DatabaseServer implements DatabaseInterface {
 		//System.out.println("Buscado no BD atual: " + myPath);
 		
 		return cars;
+	}
+    
+    public static boolean getPermission() {
+		
+		String sourceIp = "";
+		
+		
+		try {
+			sourceIp = RemoteServer.getClientHost();
+		} catch (ServerNotActiveException e1) {
+			e1.printStackTrace();
+		}
+		//sourceIp = getIp();
+		
+		// se for o permitido ou eu mesmo (rede local eh 127.0.0.1)
+		if(storagePermission.getSourceIp().equals(sourceIp) && storagePermission.getDestinationPort() == 5010 + myPath) {
+			System.out.println("------------------------");
+			System.out.println("Firewall --> Pacote permitido. Acesso: " + storagePermission.getName() + ", source: " + storagePermission.getSourceIp());
+			return true;
+		} else {
+			System.out.println("------------------------");
+			System.out.println("Firewall --> Pacote negado. Acesso: " + storagePermission.getName() + ", source: " + sourceIp);
+			return false;
+		}
 	}
     
 }

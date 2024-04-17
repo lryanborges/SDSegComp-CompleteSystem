@@ -62,7 +62,7 @@ public class AuthenticationServer implements AuthInterface {
 			Registry register = LocateRegistry.createRegistry(5001);
 			register.rebind("Authentication", server);
 
-			gatewayPermission = new Permission("127.0.0.1", "127.0.0.1", 5001, "Autenticação", true);
+			gatewayPermission = new Permission("192.168.8.218", "127.0.0.1", 5001, "Autenticação", true);
 			
 			System.out.println("Servidor de Autenticação ligado.");
 
@@ -159,7 +159,7 @@ public class AuthenticationServer implements AuthInterface {
 		} catch (ServerNotActiveException e1) {
 			e1.printStackTrace();
 		}
-		sourceIp = getIp();
+		//sourceIp = getIp();
 		
 		// se for o permitido ou eu mesmo (rede local eh 127.0.0.1)
 		if(gatewayPermission.getSourceIp().equals(sourceIp) && gatewayPermission.getDestinationPort() == 5001) {
